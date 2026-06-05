@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APIGENE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$APIGENE_ROOT"
+
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/ui.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_setup.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_start.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_stop.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_test.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_logs.sh"
+
+apigene_usage() {
+  apigene_banner "Apigene CLI"
+  cat <<EOF
+Usage: ./apigene <command> [options]
+
+Commands:
+  setup              First-time install (create .env, pull images, start)
+  start [--pull]     Start all services
+  stop [--volumes]   Stop services (optionally delete Mongo data)
+  test               Run health checks on the full stack
+  logs [services]    Tail colored logs (add --raw for plain output)
+
+Examples:
+  ./apigene setup
+  ./apigene start
+  ./apigene start --pull
+  ./apigene test
+  ./apigene stop
+  ./apigene stop --volumes
+  ./apigene logs backend
+
+Options:
+  -h, --help         Show help for a command or this overview
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+
+  case "$cmd" in
+    ""|help|-h|--help)
+      apigene_usage
+      ;;
+    setup)
+      shift
+      cmd_setup "$@"
+      ;;
+    start)
+      shift
+      cmd_start "$@"
+      ;;
+    stop)
+      shift
+      cmd_stop "$@"
+      ;;
+    test)
+      shift
+      set +e
+      cmd_test "$@"
+      exit $?
+      ;;
+    logs)
+      shift
+      cmd_logs "$@"
+      ;;
+    *)
+      apigene_err "Unknown command: $cmd"
+      echo ""
+      apigene_info "Run ${C_BOLD}./apigene --help${C_RESET} to see available commands."
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

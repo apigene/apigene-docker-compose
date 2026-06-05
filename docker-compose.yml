@@ -1,0 +1,153 @@
+# Apigene — self-hosted Docker Compose stack
+#
+# Quick start:
+#   cp .env.example .env   # add API keys
+#   ./apigene setup        # first time
+#   ./apigene start        # start existing install
+#   open http://localhost
+#
+# Nginx is the only public entry point. It routes:
+#   /              → copilot (UI)
+#   /api/*         → backend
+#   /docs, /redoc  → backend
+#   /*/mcp         → mcp-gw
+
+name: apigene
+
+x-apigene-env-file: &env-file
+  env_file:
+    - .env
+
+x-apigene-local-env: &local-env
+  MONGO_DB_URL: mongodb://mongo:27017/?directConnection=true
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_CACHE_DB: "1"
+  TENANT_NAME: ${TENANT_NAME:-local}
+  DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:-SaaS}
+  UVICORN_WORKERS: "1"
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    command: ["mongod", "--config", "/etc/mongod.conf"]
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./mongod.conf:/etc/mongod.conf:ro
+    logging:
+      driver: "none"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/27017'"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--loglevel", "warning"]
+    logging:
+      driver: "none"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    restart: unless-stopped
+    <<: *env-file
+    command: ["app"]
+    environment:
+      <<: *local-env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8000/api/health'')"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  backend-worker:
+    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    restart: unless-stopped
+    <<: *env-file
+    command: ["celery"]
+    environment:
+      <<: *local-env
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  copilot:
+    image: public.ecr.aws/apigene/apigene-copilot:${APIGENE_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    restart: unless-stopped
+    <<: *env-file
+    network_mode: service:nginx
+    environment:
+      <<: *local-env
+      NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost}
+    depends_on:
+      nginx:
+        condition: service_started
+      backend:
+        condition: service_healthy
+
+  mcp-gw:
+    image: public.ecr.aws/apigene/apigene-mcp-gw:${APIGENE_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    restart: unless-stopped
+    <<: *env-file
+    environment:
+      <<: *local-env
+      APIGENE_URL: http://nginx
+      CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    image: public.ecr.aws/apigene/apigene-nginx:${APIGENE_IMAGE_TAG:-latest}
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "${APIGENE_PORT:-80}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    entrypoint: ["nginx", "-g", "daemon off;"]
+    depends_on:
+      backend:
+        condition: service_healthy
+      mcp-gw:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O - http://127.0.0.1/nginx-health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+volumes:
+  mongo_data:
