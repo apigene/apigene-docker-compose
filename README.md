@@ -157,15 +157,6 @@ ALLOWED_ORIGINS=http://localhost:8080
 
 Then restart: `./apigene stop && ./apigene start`
 
-### MongoDB Compass
-
-The stack exposes MongoDB on `localhost:27017` by default. If you already run MongoDB locally (e.g. via Homebrew), set a different host port:
-
-```bash
-MONGO_HOST_PORT=27018
-```
-
-Connect Compass to `mongodb://localhost:27018`.
 
 ## Routing
 
@@ -208,16 +199,7 @@ To pin a specific version, set `APIGENE_IMAGE_TAG` in `.env`.
 
 Run `./apigene test` for a full diagnostic report.
 
-## Production notes
-
-This stack is designed for **local development and evaluation**. For production deployments:
-
-- Put a TLS-terminating reverse proxy (nginx, Caddy, cloud load balancer) in front
-- Use a managed MongoDB and Redis, or ensure backups for the `mongo_data` volume
-- Set `LOG_ENV=cloud` for structured logging
-- Pin `APIGENE_IMAGE_TAG` to a tested version
-
 ## Support
 
-- Documentation: [apigene.ai/docs](https://apigene.ai/docs)
+- Documentation: [apigene.ai/docs](https://docs.apigene.ai/)
 - Issues: [GitHub Issues](https://github.com/apigene/apigene-docker-compose/issues)
