@@ -6,7 +6,7 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with a si
 
 | Service | Role |
 |---------|------|
-| **nginx** | Single entry point (default port **80**) |
+| **nginx** | Single entry point (port from `APIGENE_PORT`, default **8080**) |
 | **copilot** | Web UI at `/` |
 | **backend** | API at `/api/*`, docs at `/docs` |
 | **mcp-gw** | MCP gateway at `/agent/<name>/mcp` |
@@ -19,7 +19,6 @@ All application images are pulled from public ECR — no build step required.
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
 - An [OpenAI API key](https://platform.openai.com/api-keys)
-- A [Clerk](https://clerk.com) account for authentication
 
 **Apple Silicon (M1/M2/M3):** Images run as `linux/amd64` via emulation. First start may take a few extra minutes.
 
@@ -55,13 +54,13 @@ git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 
 cp .env.example .env
-# Edit .env — add OpenAI and Clerk keys (see Clerk setup below)
+# Edit .env — add your OpenAI API keys (see Configuration below)
 
 chmod +x apigene
 ./apigene setup
 ```
 
-Open **http://localhost** (or the URL matching your `APIGENE_PORT` and `NEXT_PUBLIC_SERVER_BASE_URL`).
+Open **http://localhost:8080** by default, or whatever port you set in `APIGENE_PORT`.
 
 Verify everything is healthy:
 
@@ -69,49 +68,83 @@ Verify everything is healthy:
 ./apigene test
 ```
 
-## Clerk setup
+## Configuration
 
-Apigene uses [Clerk](https://clerk.com) for sign-in. You need a Clerk application with these settings:
+Copy `.env.example` to `.env` and fill in the required values.
 
-### 1. Create a Clerk application
+### Local development (default)
 
-Go to [dashboard.clerk.com](https://dashboard.clerk.com) and create an application.
-
-### 2. Copy API keys into `.env`
-
-From **API Keys** in the Clerk dashboard:
-
-| `.env` variable | Where to find it |
-|-----------------|------------------|
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Publishable key (`pk_…`) |
-| `CLERK_SECRET_KEY` | Secret key (`sk_…`) |
-| `AUTH_CLERK_PUBLIC_KEY` | JWT public key (PEM format, or `base64:…` prefix) |
-| `CLERK_REMOTE_API_URL` | Frontend API URL, e.g. `https://your-app.clerk.accounts.dev` |
-
-### 3. Create a JWT template
-
-In Clerk → **JWT Templates**, create a template (e.g. `apigene-24hr-user-token`) and set:
-
-```
-NEXT_PUBLIC_AUTH_CLERK_JWT_TPL=apigene-24hr-user-token
-```
-
-### 4. Configure allowed origins and redirects
-
-In Clerk → **Paths** or **Domains**, add your Apigene URL:
-
-- Allowed origin: `http://localhost` (or your custom URL/port)
-- Sign-in URL: `/sign-in`
-- Sign-up URL: `/sign-up`
-
-Set the same values in `.env`:
+Set the host port once — URLs are derived as `http://localhost:$APIGENE_PORT`:
 
 ```bash
-NEXT_PUBLIC_SERVER_BASE_URL=http://localhost
-ALLOWED_ORIGINS=http://localhost
+APIGENE_PORT=8080
+
+OPENAI_API_KEY=
+DEFAULT_OPEN_API_KEY=
+DATABASE_ENV=local
+CACHE_ENABLED=True
 ```
 
-If you use a non-default port (e.g. `8080`), include the port in all three places.
+### Custom domain, LAN IP, or HTTPS
+
+Set the URL users actually open in the browser. `ALLOWED_ORIGINS` follows automatically unless you override it (e.g. for multiple origins):
+
+```bash
+APIGENE_PORT=8080
+NEXT_PUBLIC_SERVER_BASE_URL=https://apigene.example.com
+
+OPENAI_API_KEY=
+DEFAULT_OPEN_API_KEY=
+```
+
+LAN IP example:
+
+```bash
+APIGENE_PORT=8080
+NEXT_PUBLIC_SERVER_BASE_URL=http://192.168.1.100:8080
+```
+
+Multiple allowed origins:
+
+```bash
+NEXT_PUBLIC_SERVER_BASE_URL=https://apigene.example.com
+ALLOWED_ORIGINS=https://apigene.example.com,http://localhost:8080
+```
+
+`APIGENE_PORT` still controls which **host port** Docker publishes nginx on. Put a reverse proxy in front when using HTTPS on a custom domain.
+
+| Variable | When to set | Description |
+|----------|-------------|-------------|
+| `APIGENE_PORT` | Always (local) | Host port nginx binds to (default `8080`) |
+| `NEXT_PUBLIC_SERVER_BASE_URL` | Custom URL | Public URL users open — domain, IP, or `https://` |
+| `ALLOWED_ORIGINS` | Optional | CORS origins; defaults to `NEXT_PUBLIC_SERVER_BASE_URL` |
+| `DATABASE_ENV` | Optional | Logical name to isolate data (default `local`) |
+| `MONGO_HOST_PORT` | Optional | Host port for MongoDB (default `27017`) |
+| `CACHE_ENABLED` | Optional | Enable Redis-backed caching (default `True`) |
+
+MongoDB and Redis connection settings are applied automatically. You usually do not need to set `MONGO_DB_URL` or `REDIS_*` unless you use external databases.
+
+### Using a different local port
+
+Change `APIGENE_PORT` only:
+
+```bash
+APIGENE_PORT=9090
+```
+
+Then restart: `./apigene stop && ./apigene start` → `http://localhost:9090`.
+
+### Authentication
+
+By default, copilot and mcp-gw use Apigene API key authentication. Sign in through the UI and use your API key for MCP clients.
+
+To use Clerk OAuth instead, set in `.env`:
+
+```bash
+NEXT_PUBLIC_AUTH_PROVIDER=clerk
+```
+
+See the [Apigene docs](https://docs.apigene.ai/) for Clerk configuration when using that provider.
 
 ## CLI reference
 
@@ -131,19 +164,19 @@ If you use a non-default port (e.g. `8080`), include the port in all three place
 
 MCP is available through the gateway — not on a separate port.
 
-**URL format:**
+**URL format** (uses your `APIGENE_PORT`, default `8080`):
 
 ```
-http://localhost/agent/<agent-name>/mcp
+http://localhost:<APIGENE_PORT>/agent/<agent-name>/mcp
 ```
 
 Example for agent `www`:
 
 ```
-http://localhost/agent/www/mcp
+http://localhost:8080/agent/www/mcp
 ```
 
-**Authentication:** Pass your Apigene user token in the `apigene-api-key` header. You can copy this from the Apigene UI (Settings → API key) or use a Clerk-backed JWT.
+**Authentication:** Pass your Apigene API key in the `apigene-api-key` header. Copy it from the Apigene UI (Settings → API key).
 
 **Cursor `mcp.json` example:**
 
@@ -151,7 +184,7 @@ http://localhost/agent/www/mcp
 {
   "mcpServers": {
     "apigene": {
-      "url": "http://localhost/agent/www/mcp",
+      "url": "http://localhost:8080/agent/www/mcp",
       "headers": {
         "apigene-api-key": "YOUR_TOKEN_HERE"
       }
@@ -159,29 +192,6 @@ http://localhost/agent/www/mcp
   }
 }
 ```
-
-## Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APIGENE_PORT` | `80` | Host port for the web gateway |
-| `APIGENE_IMAGE_TAG` | `latest` | Tag for all `public.ecr.aws/apigene/*` images |
-| `MONGO_HOST_PORT` | `27017` | Host port for MongoDB (for Compass, etc.) |
-| `DATABASE_ENV` | `local` | Logical name to isolate data between deployments |
-
-### Using a different port
-
-If port 80 is in use or requires elevated privileges:
-
-```bash
-# In .env:
-APIGENE_PORT=8080
-NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:8080
-ALLOWED_ORIGINS=http://localhost:8080
-```
-
-Then restart: `./apigene stop && ./apigene start`
-
 
 ## Routing
 
@@ -193,10 +203,10 @@ Then restart: `./apigene stop && ./apigene start`
 | `/agent/<name>/mcp` | mcp-gw |
 | `/.well-known/*` | mcp-gw |
 
-Health endpoints:
+Health endpoints (replace `<APIGENE_PORT>` with your port, default `8080`):
 
-- http://localhost/nginx-health
-- http://localhost/api/health
+- `http://localhost:<APIGENE_PORT>/nginx-health`
+- `http://localhost:<APIGENE_PORT>/api/health`
 
 ## Upgrading
 
@@ -213,14 +223,13 @@ To pin a specific version, set `APIGENE_IMAGE_TAG` in `.env`.
 | Problem | Fix |
 |---------|-----|
 | `.env` missing | Run `./apigene setup` |
-| Backend unhealthy | Check `./apigene logs backend` — confirm `OPENAI_API_KEY` and Clerk keys |
-| UI loads but API fails | Ensure `NEXT_PUBLIC_SERVER_BASE_URL` matches your browser URL (including port) |
-| Clerk redirect wrong port | Set `NEXT_PUBLIC_SERVER_BASE_URL` with the correct port; update Clerk allowed origins |
-| MCP returns 500 / publishable key missing | Ensure `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_REMOTE_API_URL` are set in `.env` |
+| Backend unhealthy | Check `./apigene logs backend` — confirm `OPENAI_API_KEY` is set |
+| UI loads but API fails | Ensure the URL in your browser matches `NEXT_PUBLIC_SERVER_BASE_URL` (or derived `http://localhost:$APIGENE_PORT`) |
 | MCP tools fail with ECONNREFUSED | Restart mcp-gw — `APIGENE_URL` is set automatically to `http://nginx` |
-| Port already in use | Change `APIGENE_PORT` and update URLs in `.env` |
+| Port already in use | Change `APIGENE_PORT` in `.env` and restart |
 | Compass shows wrong database | Another MongoDB may be using port 27017 — set `MONGO_HOST_PORT=27018` |
 | Slow on Apple Silicon | Expected — images run via amd64 emulation |
+| Redis / backend slow to start | First boot may take 1–2 minutes while health checks pass |
 
 Run `./apigene test` for a full diagnostic report.
 

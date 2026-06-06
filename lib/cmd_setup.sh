@@ -8,8 +8,8 @@ cmd_setup() {
     cp .env.example .env
     apigene_ok "Created .env from .env.example"
     echo ""
-    apigene_warn "Edit .env and add your API keys (OpenAI, Clerk, etc.)"
-    apigene_info "See README.md for Clerk setup instructions."
+    apigene_warn "Edit .env and add your API keys (OpenAI, etc.)"
+    apigene_info "See README.md for configuration."
     apigene_info "Then run: ${C_BOLD}./apigene setup${C_RESET}"
     return 0
   fi

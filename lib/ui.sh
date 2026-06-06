@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Shared UI helpers for the Apigene CLI.
 
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/defaults.sh"
+
 apigene_init_colors() {
   if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
     C_RESET='\033[0m'
@@ -53,8 +56,8 @@ apigene_step() {
 }
 
 apigene_load_env() {
-  APIGENE_PORT="${APIGENE_PORT:-80}"
-  APIGENE_BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${APIGENE_PORT}}"
+  APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
+  APIGENE_BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${APIGENE_PORT}")}"
   APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
 
   if [[ -f .env ]]; then
@@ -62,8 +65,8 @@ apigene_load_env() {
     set -a
     source .env
     set +a
-    APIGENE_PORT="${APIGENE_PORT:-80}"
-    APIGENE_BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${APIGENE_PORT}}"
+    APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
+    APIGENE_BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${APIGENE_PORT}")}"
     APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
   fi
 }

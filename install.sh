@@ -136,19 +136,29 @@ run_setup() {
 }
 
 print_next_steps() {
-  local env_file="${APIGENE_INSTALL_DIR}/.env"
   section "Next steps"
+
+  local env_file="${APIGENE_INSTALL_DIR}/.env"
+  local open_port="${APIGENE_DEFAULT_PORT:-8080}"
+  if [[ -f "${APIGENE_INSTALL_DIR}/lib/defaults.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${APIGENE_INSTALL_DIR}/lib/defaults.sh"
+    open_port="${APIGENE_DEFAULT_PORT}"
+  fi
+  if [[ -f "${env_file}" ]] && grep -q '^APIGENE_PORT=' "${env_file}" 2>/dev/null; then
+    open_port="$(grep '^APIGENE_PORT=' "${env_file}" | cut -d= -f2- | tr -d '"')"
+  fi
 
   if [[ ! -f "${env_file}" ]] || ! grep -q '^OPENAI_API_KEY=.\+' "${env_file}" 2>/dev/null; then
     warn "Add your API keys to ${env_file}"
-    info "Required: OPENAI_API_KEY and Clerk keys (see README.md)"
+    info "Required: OPENAI_API_KEY (see README.md)"
     info "Then run: ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene setup${C_RESET}"
     echo ""
   fi
 
   info "Start:   ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene start${C_RESET}"
   info "Test:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene test${C_RESET}"
-  info "Open:    ${C_BOLD}http://localhost${C_RESET} (or your APIGENE_PORT / NEXT_PUBLIC_SERVER_BASE_URL)"
+  info "Open:    ${C_BOLD}http://localhost:${open_port}${C_RESET}"
   info "Docs:    https://github.com/apigene/apigene-docker-compose"
   echo ""
   echo -e "${C_GREEN}${C_BOLD}✔ Install complete.${C_RESET}"

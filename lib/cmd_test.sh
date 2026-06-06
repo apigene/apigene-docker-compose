@@ -5,8 +5,8 @@ cmd_test() {
   local SERVICES REQUIRED_ENV_KEYS
   local PASS=0 FAIL=0 WARN=0 START_TS
 
-  PORT="${APIGENE_PORT:-80}"
-  BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${PORT}}"
+  PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
+  BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${PORT}")}"
   IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
 
   if [[ -f .env ]]; then

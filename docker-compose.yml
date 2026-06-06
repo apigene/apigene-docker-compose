@@ -7,7 +7,7 @@
 #   cp .env.example .env   # add API keys
 #   ./apigene setup        # first time
 #   ./apigene start        # start existing install
-#   open http://localhost
+#   open http://localhost:$APIGENE_PORT
 #
 # Nginx is the only public entry point. It routes:
 #   /              → copilot (UI)
@@ -29,6 +29,10 @@ x-apigene-local-env: &local-env
   TENANT_NAME: ${TENANT_NAME:-local}
   DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:-SaaS}
   UVICORN_WORKERS: "1"
+  # Local default: http://localhost:$APIGENE_PORT. Set NEXT_PUBLIC_SERVER_BASE_URL for a
+  # custom domain, LAN IP, or HTTPS URL; ALLOWED_ORIGINS follows unless overridden.
+  NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${APIGENE_PORT:-8080}}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${APIGENE_PORT:-8080}}}
 
 services:
   mongo:
@@ -57,9 +61,10 @@ services:
       driver: "none"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
+      interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 5s
 
   backend:
     image: public.ecr.aws/apigene/apigene-backend:${APIGENE_IMAGE_TAG:-latest}
@@ -107,7 +112,6 @@ services:
     network_mode: service:nginx
     environment:
       <<: *local-env
-      NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost}
     depends_on:
       nginx:
         condition: service_started
@@ -122,7 +126,6 @@ services:
     environment:
       <<: *local-env
       APIGENE_URL: http://nginx
-      CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     depends_on:
       backend:
         condition: service_healthy
@@ -132,7 +135,7 @@ services:
     platform: linux/amd64
     restart: unless-stopped
     ports:
-      - "${APIGENE_PORT:-80}:80"
+      - "${APIGENE_PORT:-8080}:8080"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     entrypoint: ["nginx", "-g", "daemon off;"]
