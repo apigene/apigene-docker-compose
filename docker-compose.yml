@@ -1,6 +1,9 @@
 # Apigene — self-hosted Docker Compose stack
 #
-# Quick start:
+# One-line install:
+#   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
+#
+# Quick start (manual):
 #   cp .env.example .env   # add API keys
 #   ./apigene setup        # first time
 #   ./apigene start        # start existing install

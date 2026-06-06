@@ -25,6 +25,31 @@ All application images are pulled from public ECR — no build step required.
 
 ## Quick start
 
+### One-line install
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2) and Git.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
+```
+
+This clones into `~/apigene`, runs `./apigene setup`, and pulls container images. Edit `~/apigene/.env` with your API keys if setup created a new config file, then run `./apigene setup` again.
+
+Install options:
+
+```bash
+# Custom install directory
+APIGENE_INSTALL_DIR=~/Projects/apigene curl -fsSL .../install.sh | bash
+
+# Clone/update only (skip docker pull and start)
+APIGENE_SKIP_SETUP=1 curl -fsSL .../install.sh | bash
+
+# Add apigene to ~/.local/bin
+APIGENE_LINK_CLI=1 curl -fsSL .../install.sh | bash
+```
+
+### Manual install
+
 ```bash
 git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
