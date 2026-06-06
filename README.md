@@ -2,50 +2,18 @@
 
 Run the full [Apigene](https://apigene.ai) platform locally or on-prem with a single command. One URL serves the web UI, API, docs, and MCP gateway. MongoDB and Redis are included.
 
-## What you get
+## Quick start
 
-| Service | Role |
-|---------|------|
-| **nginx** | Single entry point (port from `APIGENE_PORT`, default **8080**) |
-| **copilot** | Web UI at `/` |
-| **backend** | API at `/api/*`, docs at `/docs` |
-| **mcp-gw** | MCP gateway at `/agent/<name>/mcp` |
-| **mongo** | Database |
-| **redis** | Cache and background jobs |
+### One-line install
 
-All application images are pulled from public ECR — no build step required.
-
+```bash
+curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
+```
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
 - An [OpenAI API key](https://platform.openai.com/api-keys)
 
-**Apple Silicon (M1/M2/M3):** Images run as `linux/amd64` via emulation. First start may take a few extra minutes.
-
-## Quick start
-
-### One-line install
-
-Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2) and Git.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
-```
-
-This clones into `~/apigene`, runs `./apigene setup`, and pulls container images. Edit `~/apigene/.env` with your API keys if setup created a new config file, then run `./apigene setup` again.
-
-Install options:
-
-```bash
-# Custom install directory
-APIGENE_INSTALL_DIR=~/Projects/apigene curl -fsSL .../install.sh | bash
-
-# Clone/update only (skip docker pull and start)
-APIGENE_SKIP_SETUP=1 curl -fsSL .../install.sh | bash
-
-# Add apigene to ~/.local/bin
-APIGENE_LINK_CLI=1 curl -fsSL .../install.sh | bash
-```
 
 ### Manual install
 
