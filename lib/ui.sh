@@ -56,19 +56,24 @@ apigene_step() {
 }
 
 apigene_load_env() {
-  APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
-  APIGENE_BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${APIGENE_PORT}")}"
-  APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
+  APIGENE_PORT="${APIGENE_DEFAULT_PORT}"
+  APIGENE_IMAGE_TAG="latest"
+  local explicit_base_url=""
 
   if [[ -f .env ]]; then
+    explicit_base_url="$(apigene_env_file_value .env NEXT_PUBLIC_SERVER_BASE_URL || true)"
+    APIGENE_PORT="$(apigene_env_file_value .env APIGENE_PORT || true)"
+    APIGENE_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_IMAGE_TAG || true)"
+
     # shellcheck disable=SC1091
     set -a
     source .env
     set +a
-    APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
-    APIGENE_BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${APIGENE_PORT}")}"
-    APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
   fi
+
+  APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
+  APIGENE_BASE_URL="$(apigene_resolve_base_url "${APIGENE_PORT}" "${explicit_base_url}")"
+  APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
 }
 
 apigene_require_env() {

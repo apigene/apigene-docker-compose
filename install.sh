@@ -139,14 +139,18 @@ print_next_steps() {
   section "Next steps"
 
   local env_file="${APIGENE_INSTALL_DIR}/.env"
-  local open_port="${APIGENE_DEFAULT_PORT:-8080}"
+  local open_url="http://localhost:${APIGENE_DEFAULT_PORT:-8080}"
   if [[ -f "${APIGENE_INSTALL_DIR}/lib/defaults.sh" ]]; then
     # shellcheck disable=SC1091
     source "${APIGENE_INSTALL_DIR}/lib/defaults.sh"
-    open_port="${APIGENE_DEFAULT_PORT}"
-  fi
-  if [[ -f "${env_file}" ]] && grep -q '^APIGENE_PORT=' "${env_file}" 2>/dev/null; then
-    open_port="$(grep '^APIGENE_PORT=' "${env_file}" | cut -d= -f2- | tr -d '"')"
+    local open_port="${APIGENE_DEFAULT_PORT}"
+    local explicit_base_url=""
+    if [[ -f "${env_file}" ]]; then
+      open_port="$(apigene_env_file_value "${env_file}" APIGENE_PORT || true)"
+      explicit_base_url="$(apigene_env_file_value "${env_file}" NEXT_PUBLIC_SERVER_BASE_URL || true)"
+    fi
+    open_port="${open_port:-${APIGENE_DEFAULT_PORT}}"
+    open_url="$(apigene_resolve_base_url "${open_port}" "${explicit_base_url}")"
   fi
 
   if [[ ! -f "${env_file}" ]] || ! grep -q '^OPENAI_API_KEY=.\+' "${env_file}" 2>/dev/null; then
@@ -158,7 +162,7 @@ print_next_steps() {
 
   info "Start:   ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene start${C_RESET}"
   info "Test:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene test${C_RESET}"
-  info "Open:    ${C_BOLD}http://localhost:${open_port}${C_RESET}"
+  info "Open:    ${C_BOLD}${open_url}${C_RESET}"
   info "Docs:    https://github.com/apigene/apigene-docker-compose"
   echo ""
   echo -e "${C_GREEN}${C_BOLD}✔ Install complete.${C_RESET}"
