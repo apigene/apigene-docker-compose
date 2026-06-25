@@ -184,7 +184,7 @@ Pull the latest images and restart:
 ./apigene start --pull
 ```
 
-To pin a specific version, set `APIGENE_IMAGE_TAG` in `.env` (default: `5.0.0`).
+To pin specific versions, set per-image tags in `.env` (`APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, `APIGENE_NGINX_IMAGE_TAG`; default: `5.0.0`).
 
 ## Troubleshooting
 

@@ -57,13 +57,19 @@ apigene_step() {
 
 apigene_load_env() {
   APIGENE_PORT="${APIGENE_DEFAULT_PORT}"
-  APIGENE_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
+  APIGENE_BACKEND_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
+  APIGENE_COPILOT_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
+  APIGENE_MCP_GW_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
+  APIGENE_NGINX_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
   local explicit_base_url=""
 
   if [[ -f .env ]]; then
     explicit_base_url="$(apigene_env_file_value .env NEXT_PUBLIC_SERVER_BASE_URL || true)"
     APIGENE_PORT="$(apigene_env_file_value .env APIGENE_PORT || true)"
-    APIGENE_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_IMAGE_TAG || true)"
+    APIGENE_BACKEND_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_BACKEND_IMAGE_TAG || true)"
+    APIGENE_COPILOT_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_COPILOT_IMAGE_TAG || true)"
+    APIGENE_MCP_GW_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_MCP_GW_IMAGE_TAG || true)"
+    APIGENE_NGINX_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_NGINX_IMAGE_TAG || true)"
 
     # shellcheck disable=SC1091
     set -a
@@ -73,7 +79,10 @@ apigene_load_env() {
 
   APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
   APIGENE_BASE_URL="$(apigene_resolve_base_url "${APIGENE_PORT}" "${explicit_base_url}")"
-  APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
+  APIGENE_BACKEND_IMAGE_TAG="${APIGENE_BACKEND_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
+  APIGENE_COPILOT_IMAGE_TAG="${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
+  APIGENE_MCP_GW_IMAGE_TAG="${APIGENE_MCP_GW_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
+  APIGENE_NGINX_IMAGE_TAG="${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
 }
 
 apigene_require_env() {

@@ -1,19 +1,17 @@
 #!/usr/bin/env bash
 
 cmd_test() {
-  local PORT BASE_URL IMAGE_TAG
+  local PORT BASE_URL
   local SERVICES REQUIRED_ENV_KEYS
   local PASS=0 FAIL=0 WARN=0 START_TS
 
   PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
   BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${PORT}")}"
-  IMAGE_TAG="${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
 
   if [[ -f .env ]]; then
     apigene_load_env
     PORT="${APIGENE_PORT}"
     BASE_URL="${APIGENE_BASE_URL}"
-    IMAGE_TAG="${APIGENE_IMAGE_TAG}"
   fi
 
   SERVICES=(mongo redis backend backend-worker copilot mcp-gw nginx)
@@ -128,7 +126,7 @@ cmd_test() {
 
   apigene_banner "Apigene Test"
   info "Base URL:   ${C_BOLD}${BASE_URL}${C_RESET}"
-  info "Image tag:  ${IMAGE_TAG}"
+  info "Image tags: backend=${APIGENE_BACKEND_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}} copilot=${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}} mcp-gw=${APIGENE_MCP_GW_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}} nginx=${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
   info "Project:    $(basename "$PWD")"
   info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 
