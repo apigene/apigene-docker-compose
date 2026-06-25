@@ -3,6 +3,7 @@
 # Set APIGENE_PORT once in .env; everything else derives from it.
 
 APIGENE_DEFAULT_PORT="${APIGENE_DEFAULT_PORT:-8080}"
+APIGENE_DEFAULT_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG:-5.0.0}"
 
 apigene_public_base_url() {
   local port="${1:-${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}}"

@@ -57,7 +57,7 @@ apigene_step() {
 
 apigene_load_env() {
   APIGENE_PORT="${APIGENE_DEFAULT_PORT}"
-  APIGENE_IMAGE_TAG="latest"
+  APIGENE_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
   local explicit_base_url=""
 
   if [[ -f .env ]]; then
@@ -73,7 +73,7 @@ apigene_load_env() {
 
   APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
   APIGENE_BASE_URL="$(apigene_resolve_base_url "${APIGENE_PORT}" "${explicit_base_url}")"
-  APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-latest}"
+  APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
 }
 
 apigene_require_env() {
