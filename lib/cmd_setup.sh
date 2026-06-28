@@ -16,11 +16,18 @@ cmd_setup() {
     apigene_section "Create configuration"
     cp .env.example .env
     apigene_ok "Created .env from .env.example"
-    echo ""
-    apigene_warn "Edit .env and set AUTH_APIGENE_SECRET_KEY (see README.md)"
-    apigene_info "See README.md for configuration."
-    apigene_info "Then run: ${C_BOLD}./apigene setup${C_RESET}"
-    return 0
+  fi
+
+  if grep -qE '^AUTH_APIGENE_SECRET_KEY=(YOUR_SECRET_KEY)?$' .env 2>/dev/null; then
+    local generated_secret
+    generated_secret="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p -c 64)"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      sed -i '' "s/^AUTH_APIGENE_SECRET_KEY=.*/AUTH_APIGENE_SECRET_KEY=${generated_secret}/" .env
+    else
+      sed -i "s/^AUTH_APIGENE_SECRET_KEY=.*/AUTH_APIGENE_SECRET_KEY=${generated_secret}/" .env
+    fi
+    apigene_ok "Generated AUTH_APIGENE_SECRET_KEY for this install"
+    apigene_info "Change it in .env before production use (see README.md)"
   fi
 
   apigene_load_env

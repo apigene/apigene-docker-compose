@@ -153,17 +153,17 @@ print_next_steps() {
     open_url="$(apigene_resolve_base_url "${open_port}" "${explicit_base_url}")"
   fi
 
-  if [[ ! -f "${env_file}" ]] \
-    || grep -qE '^AUTH_APIGENE_SECRET_KEY=(YOUR_SECRET_KEY)?$' "${env_file}" 2>/dev/null \
-    || ! grep -q '^AUTH_APIGENE_SECRET_KEY=.\+' "${env_file}" 2>/dev/null; then
-    warn "Set AUTH_APIGENE_SECRET_KEY in ${env_file}"
-    info "Generate a random secret and update .env before production use (see README.md)"
+  if [[ -f "${env_file}" ]] \
+    && grep -qE '^AUTH_APIGENE_SECRET_KEY=(YOUR_SECRET_KEY)?$' "${env_file}" 2>/dev/null; then
+    warn "Set AUTH_APIGENE_SECRET_KEY in ${env_file} before production use"
+    info "Generate one with: ${C_BOLD}openssl rand -hex 32${C_RESET} (see README.md)"
     echo ""
   fi
 
-  info "Start:   ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene start${C_RESET}"
-  info "Test:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene test${C_RESET}"
   info "Open:    ${C_BOLD}${open_url}${C_RESET}"
+  info "Test:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene test${C_RESET}"
+  info "Logs:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene logs${C_RESET}"
+  info "Sign in, add an LLM key under Settings → Models, then copy your API key for MCP clients."
   info "Docs:    https://github.com/apigene/apigene-docker-compose"
   echo ""
   echo -e "${C_GREEN}${C_BOLD}✔ Install complete.${C_RESET}"
