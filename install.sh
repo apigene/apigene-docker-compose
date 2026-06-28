@@ -153,10 +153,11 @@ print_next_steps() {
     open_url="$(apigene_resolve_base_url "${open_port}" "${explicit_base_url}")"
   fi
 
-  if [[ ! -f "${env_file}" ]] || ! grep -q '^OPENAI_API_KEY=.\+' "${env_file}" 2>/dev/null; then
-    warn "Add your API keys to ${env_file}"
-    info "Required: OPENAI_API_KEY (see README.md)"
-    info "Then run: ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene setup${C_RESET}"
+  if [[ ! -f "${env_file}" ]] \
+    || grep -qE '^AUTH_APIGENE_SECRET_KEY=(YOUR_SECRET_KEY)?$' "${env_file}" 2>/dev/null \
+    || ! grep -q '^AUTH_APIGENE_SECRET_KEY=.\+' "${env_file}" 2>/dev/null; then
+    warn "Set AUTH_APIGENE_SECRET_KEY in ${env_file}"
+    info "Generate a random secret and update .env before production use (see README.md)"
     echo ""
   fi
 

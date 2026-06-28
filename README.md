@@ -12,8 +12,6 @@ curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
-- An [OpenAI API key](https://platform.openai.com/api-keys)
-
 
 ### Manual install
 
@@ -22,7 +20,7 @@ git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 
 cp .env.example .env
-# Edit .env — add your OpenAI API keys (see Configuration below)
+# Edit .env — set AUTH_APIGENE_SECRET_KEY (see Configuration below)
 
 chmod +x apigene
 ./apigene setup
@@ -47,8 +45,6 @@ Set the host port once — URLs are derived as `http://localhost:$APIGENE_PORT`:
 ```bash
 APIGENE_PORT=8080
 
-OPENAI_API_KEY=
-DEFAULT_OPEN_API_KEY=
 DATABASE_ENV=local
 CACHE_ENABLED=True
 ```
@@ -60,9 +56,6 @@ Set the URL users actually open in the browser. `ALLOWED_ORIGINS` follows automa
 ```bash
 APIGENE_PORT=8080
 NEXT_PUBLIC_SERVER_BASE_URL=https://apigene.example.com
-
-OPENAI_API_KEY=
-DEFAULT_OPEN_API_KEY=
 ```
 
 LAN IP example:
@@ -104,7 +97,7 @@ Then restart: `./apigene stop && ./apigene start` → `http://localhost:9090`.
 
 ### Authentication
 
-By default, copilot and mcp-gw use Apigene API key authentication. Sign in through the UI and use your API key for MCP clients.
+By default, copilot and mcp-gw use Apigene API key authentication. Sign in through the UI, configure LLM provider keys under **Settings → Models**, and use your API key for MCP clients.
 
 To use Clerk OAuth instead, set in `.env`:
 
@@ -184,14 +177,14 @@ Pull the latest images and restart:
 ./apigene start --pull
 ```
 
-To pin specific versions, set per-image tags in `.env` (`APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, `APIGENE_NGINX_IMAGE_TAG`; default: `5.0.0`).
+To pin specific versions, set per-image tags in `.env` (`APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, `APIGENE_NGINX_IMAGE_TAG`; defaults: backend/nginx `5.0.1`, copilot/mcp-gw `5.0.0`).
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | `.env` missing | Run `./apigene setup` |
-| Backend unhealthy | Check `./apigene logs backend` — confirm `OPENAI_API_KEY` is set |
+| Backend unhealthy | Check `./apigene logs backend` — confirm MongoDB/Redis are healthy |
 | UI loads but API fails | Ensure the URL in your browser matches `NEXT_PUBLIC_SERVER_BASE_URL` (or derived `http://localhost:$APIGENE_PORT`) |
 | MCP tools fail with ECONNREFUSED | Restart mcp-gw — `APIGENE_URL` is set automatically to `http://nginx` |
 | Port already in use | Change `APIGENE_PORT` in `.env` and restart |

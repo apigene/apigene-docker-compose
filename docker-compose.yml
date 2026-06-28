@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 #
 # Quick start (manual):
-#   cp .env.example .env   # add API keys
+#   cp .env.example .env   # configure .env
 #   ./apigene setup        # first time
 #   ./apigene start        # start existing install
 #   open http://localhost:$APIGENE_PORT
@@ -67,7 +67,7 @@ services:
       start_period: 5s
 
   backend:
-    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-5.0.0}
+    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-5.0.1}
     platform: linux/amd64
     restart: unless-stopped
     <<: *env-file
@@ -91,7 +91,7 @@ services:
       start_period: 60s
 
   backend-worker:
-    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-5.0.0}
+    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-5.0.1}
     platform: linux/amd64
     restart: unless-stopped
     <<: *env-file
@@ -131,7 +131,7 @@ services:
         condition: service_healthy
 
   nginx:
-    image: public.ecr.aws/apigene/apigene-nginx:${APIGENE_NGINX_IMAGE_TAG:-5.0.0}
+    image: public.ecr.aws/apigene/apigene-nginx:${APIGENE_NGINX_IMAGE_TAG:-5.0.1}
     platform: linux/amd64
     restart: unless-stopped
     ports:

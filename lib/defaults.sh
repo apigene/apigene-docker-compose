@@ -3,7 +3,10 @@
 # Set APIGENE_PORT once in .env; everything else derives from it.
 
 APIGENE_DEFAULT_PORT="${APIGENE_DEFAULT_PORT:-8080}"
-APIGENE_DEFAULT_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG:-5.0.0}"
+APIGENE_DEFAULT_BACKEND_IMAGE_TAG="${APIGENE_DEFAULT_BACKEND_IMAGE_TAG:-5.0.1}"
+APIGENE_DEFAULT_COPILOT_IMAGE_TAG="${APIGENE_DEFAULT_COPILOT_IMAGE_TAG:-5.0.0}"
+APIGENE_DEFAULT_MCP_GW_IMAGE_TAG="${APIGENE_DEFAULT_MCP_GW_IMAGE_TAG:-5.0.0}"
+APIGENE_DEFAULT_NGINX_IMAGE_TAG="${APIGENE_DEFAULT_NGINX_IMAGE_TAG:-5.0.1}"
 
 apigene_public_base_url() {
   local port="${1:-${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}}"
@@ -36,4 +39,25 @@ apigene_resolve_base_url() {
   fi
 
   echo "$url"
+}
+
+# Append KEY=value lines from .env.example that are missing from an existing .env.
+# Returns 0 when at least one key was added.
+apigene_merge_env_from_example() {
+  local example="${1:-.env.example}" env_file="${2:-.env}"
+  local line key added=0
+
+  [[ -f "$example" && -f "$env_file" ]] || return 1
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)= ]] || continue
+    key="${BASH_REMATCH[1]}"
+    if grep -qE "^[[:space:]]*${key}=" "$env_file"; then
+      continue
+    fi
+    printf '%s\n' "$line" >> "$env_file"
+    added=1
+  done < "$example"
+
+  [[ "$added" -eq 1 ]]
 }
