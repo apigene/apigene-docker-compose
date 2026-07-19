@@ -1,0 +1,136 @@
+name: Integration Tests
+
+on:
+  # Manual run from the Actions tab (optional image tag overrides)
+  workflow_dispatch:
+    inputs:
+      backend_tag:
+        description: Override APIGENE_BACKEND_IMAGE_TAG
+        required: false
+        type: string
+      copilot_tag:
+        description: Override APIGENE_COPILOT_IMAGE_TAG
+        required: false
+        type: string
+      mcp_gw_tag:
+        description: Override APIGENE_MCP_GW_IMAGE_TAG
+        required: false
+        type: string
+      nginx_tag:
+        description: Override APIGENE_NGINX_IMAGE_TAG
+        required: false
+        type: string
+
+  # Weekly cron — catch public ECR image drift without code changes
+  # (Monday 06:00 UTC). Scheduled workflows only run on the default branch.
+  schedule:
+    - cron: "0 6 * * 1"
+
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APIGENE_PORT: "8080"
+  MONGO_HOST_PORT: "27018"
+  COMPOSE_PROJECT_NAME: apigene-ci
+
+jobs:
+  integration:
+    name: Smoke + API integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          SECRET="$(openssl rand -hex 32)"
+          sed -i "s/^AUTH_APIGENE_SECRET_KEY=.*/AUTH_APIGENE_SECRET_KEY=${SECRET}/" .env
+
+          # Stable host ports for the runner
+          if grep -qE '^APIGENE_PORT=' .env; then
+            sed -i "s/^APIGENE_PORT=.*/APIGENE_PORT=${APIGENE_PORT}/" .env
+          else
+            echo "APIGENE_PORT=${APIGENE_PORT}" >> .env
+          fi
+          if grep -qE '^MONGO_HOST_PORT=' .env; then
+            sed -i "s/^MONGO_HOST_PORT=.*/MONGO_HOST_PORT=${MONGO_HOST_PORT}/" .env
+          else
+            echo "MONGO_HOST_PORT=${MONGO_HOST_PORT}" >> .env
+          fi
+
+          set_tag() {
+            local key="$1" value="$2"
+            [[ -n "$value" ]] || return 0
+            if grep -qE "^${key}=" .env; then
+              sed -i "s/^${key}=.*/${key}=${value}/" .env
+            else
+              echo "${key}=${value}" >> .env
+            fi
+          }
+
+          set_tag APIGENE_BACKEND_IMAGE_TAG "${{ inputs.backend_tag }}"
+          set_tag APIGENE_COPILOT_IMAGE_TAG "${{ inputs.copilot_tag }}"
+          set_tag APIGENE_MCP_GW_IMAGE_TAG "${{ inputs.mcp_gw_tag }}"
+          set_tag APIGENE_NGINX_IMAGE_TAG "${{ inputs.nginx_tag }}"
+
+          echo "Using image tags:"
+          grep -E '^APIGENE_(BACKEND|COPILOT|MCP_GW|NGINX)_IMAGE_TAG=' .env || true
+
+      - name: Pull images
+        run: docker compose pull
+
+      - name: Start stack
+        run: |
+          set -euo pipefail
+          chmod +x apigene tests/integration.sh
+          docker compose up -d
+
+          echo "Waiting for nginx + backend health..."
+          for i in $(seq 1 72); do
+            if curl -fsS "http://localhost:${APIGENE_PORT}/nginx-health" >/dev/null 2>&1 \
+              && curl -fsS "http://localhost:${APIGENE_PORT}/api/health" 2>/dev/null | grep -q '"status"'; then
+              echo "Stack healthy after attempt ${i}"
+              docker compose ps
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "::error::Stack did not become healthy within timeout"
+          docker compose ps -a
+          docker compose logs --tail=200
+          exit 1
+
+      - name: Smoke checks (./apigene test)
+        run: ./apigene test
+
+      - name: API integration tests
+        run: ./tests/integration.sh
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          set +e
+          echo "::group::compose ps"
+          docker compose ps -a
+          echo "::endgroup::"
+          echo "::group::backend logs"
+          docker compose logs --tail=300 backend backend-worker
+          echo "::endgroup::"
+          echo "::group::nginx / mcp-gw / copilot logs"
+          docker compose logs --tail=200 nginx mcp-gw copilot
+          echo "::endgroup::"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans

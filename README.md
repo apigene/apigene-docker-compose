@@ -54,6 +54,7 @@ Verify everything is healthy:
 ```bash
 cd ~/apigene   # or your clone directory
 ./apigene test
+./tests/integration.sh   # broad API integration suite
 ```
 
 ## Configuration
