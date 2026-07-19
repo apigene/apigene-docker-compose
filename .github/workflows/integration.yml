@@ -67,6 +67,12 @@ jobs:
           else
             echo "MONGO_HOST_PORT=${MONGO_HOST_PORT}" >> .env
           fi
+          # Keep .env URL in sync with APIGENE_PORT (avoids smoke-test warning)
+          if grep -qE '^NEXT_PUBLIC_SERVER_BASE_URL=' .env; then
+            sed -i "s|^NEXT_PUBLIC_SERVER_BASE_URL=.*|NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:${APIGENE_PORT}|" .env
+          else
+            echo "NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:${APIGENE_PORT}" >> .env
+          fi
 
           set_tag() {
             local key="$1" value="$2"
@@ -95,20 +101,37 @@ jobs:
           chmod +x apigene tests/integration.sh
           docker compose up -d
 
-          echo "Waiting for nginx + backend health..."
-          for i in $(seq 1 72); do
+          # Wait until services that ./apigene test asserts are actually ready.
+          # HTTP health alone is not enough: nginx Docker healthcheck can still
+          # be "starting", and Celery needs longer to print "celery@… ready".
+          echo "Waiting for nginx healthy + Celery worker ready..."
+          for i in $(seq 1 90); do
+            nginx_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$(docker compose ps -q nginx)" 2>/dev/null || echo missing)"
+            celery_ready=0
+            worker_id="$(docker compose ps -q backend-worker 2>/dev/null || true)"
+            if [[ -n "$worker_id" ]] && docker logs "$worker_id" 2>&1 | grep -qE 'celery@.* ready'; then
+              celery_ready=1
+            fi
+
+            api_ok=0
             if curl -fsS "http://localhost:${APIGENE_PORT}/nginx-health" >/dev/null 2>&1 \
               && curl -fsS "http://localhost:${APIGENE_PORT}/api/health" 2>/dev/null | grep -q '"status"'; then
-              echo "Stack healthy after attempt ${i}"
+              api_ok=1
+            fi
+
+            if [[ "$nginx_health" == "healthy" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
+              echo "Stack ready after attempt ${i} (nginx=${nginx_health}, celery=ready, api=ok)"
               docker compose ps
               exit 0
             fi
+
+            echo "attempt ${i}/90 — nginx=${nginx_health} celery_ready=${celery_ready} api_ok=${api_ok}"
             sleep 5
           done
 
           echo "::error::Stack did not become healthy within timeout"
           docker compose ps -a
-          docker compose logs --tail=200
+          docker compose logs --tail=200 backend backend-worker nginx
           exit 1
 
       - name: Smoke checks (./apigene test)
