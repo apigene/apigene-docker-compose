@@ -122,7 +122,7 @@ cmd_test() {
 
   apigene_banner "Apigene Test"
   info "Base URL:   ${C_BOLD}${BASE_URL}${C_RESET}"
-  info "Image tags: backend=${APIGENE_BACKEND_IMAGE_TAG:-${APIGENE_DEFAULT_BACKEND_IMAGE_TAG}} copilot=${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_DEFAULT_COPILOT_IMAGE_TAG}} mcp-gw=${APIGENE_MCP_GW_IMAGE_TAG:-${APIGENE_DEFAULT_MCP_GW_IMAGE_TAG}} nginx=${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_DEFAULT_NGINX_IMAGE_TAG}}"
+  info "Image tag:  ${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
   info "Project:    $(basename "$PWD")"
   info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 

@@ -4,6 +4,10 @@ on:
   # Manual run from the Actions tab (optional image tag overrides)
   workflow_dispatch:
     inputs:
+      image_tag:
+        description: Override APIGENE_IMAGE_TAG for all services
+        required: false
+        type: string
       backend_tag:
         description: Override APIGENE_BACKEND_IMAGE_TAG
         required: false
@@ -84,13 +88,14 @@ jobs:
             fi
           }
 
+          set_tag APIGENE_IMAGE_TAG "${{ inputs.image_tag }}"
           set_tag APIGENE_BACKEND_IMAGE_TAG "${{ inputs.backend_tag }}"
           set_tag APIGENE_COPILOT_IMAGE_TAG "${{ inputs.copilot_tag }}"
           set_tag APIGENE_MCP_GW_IMAGE_TAG "${{ inputs.mcp_gw_tag }}"
           set_tag APIGENE_NGINX_IMAGE_TAG "${{ inputs.nginx_tag }}"
 
           echo "Using image tags:"
-          grep -E '^APIGENE_(BACKEND|COPILOT|MCP_GW|NGINX)_IMAGE_TAG=' .env || true
+          grep -E '^APIGENE_(IMAGE|BACKEND|COPILOT|MCP_GW|NGINX)_IMAGE_TAG=' .env || true
 
       - name: Pull images
         run: docker compose pull

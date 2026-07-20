@@ -213,7 +213,7 @@ Pull the latest images and restart:
 ./apigene start --pull
 ```
 
-To pin specific versions, set per-image tags in `.env` (`APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, `APIGENE_NGINX_IMAGE_TAG`; defaults: backend/nginx `5.0.1`, copilot/mcp-gw `5.0.0`).
+To pin a specific release, set `APIGENE_IMAGE_TAG` in `.env`. To override one service, uncomment its per-image tag in `.env.example`.
 
 ## Troubleshooting
 

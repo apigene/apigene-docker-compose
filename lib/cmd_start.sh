@@ -27,7 +27,7 @@ cmd_start() {
 
   apigene_banner "Apigene Start"
   apigene_info "Base URL:   ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
-  apigene_info "Image tags: backend=${APIGENE_BACKEND_IMAGE_TAG} copilot=${APIGENE_COPILOT_IMAGE_TAG} mcp-gw=${APIGENE_MCP_GW_IMAGE_TAG} nginx=${APIGENE_NGINX_IMAGE_TAG}"
+  apigene_info "Image tag:  ${APIGENE_IMAGE_TAG}"
   apigene_info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 
   if [[ "$pull_images" == "true" ]]; then
