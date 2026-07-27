@@ -207,13 +207,13 @@ Health endpoints (replace `<APIGENE_PORT>` with your port, default `8080`):
 
 ## Upgrading
 
-Pull the latest images and restart:
+By default, `APIGENE_IMAGE_TAG=latest` in `.env.example` — `./apigene start --pull` fetches the current public ECR release.
 
 ```bash
 ./apigene start --pull
 ```
 
-To pin a specific release, set `APIGENE_IMAGE_TAG` in `.env`. To override one service, uncomment its per-image tag in `.env.example`.
+For production, pin a specific release in `.env` (e.g. `APIGENE_IMAGE_TAG=5.4.0`). To override one service, uncomment its per-image tag in `.env.example`.
 
 ## Troubleshooting
 

@@ -89,7 +89,7 @@ jobs:
             fi
           }
 
-          set_tag APIGENE_IMAGE_TAG "${{ inputs.image_tag }}"
+          set_tag APIGENE_IMAGE_TAG "${{ inputs.image_tag || 'latest' }}"
           set_tag APIGENE_BACKEND_IMAGE_TAG "${{ inputs.backend_tag }}"
           set_tag APIGENE_COPILOT_IMAGE_TAG "${{ inputs.copilot_tag }}"
           set_tag APIGENE_MCP_GW_IMAGE_TAG "${{ inputs.mcp_gw_tag }}"

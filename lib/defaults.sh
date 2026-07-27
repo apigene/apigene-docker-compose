@@ -4,8 +4,8 @@
 
 APIGENE_DEFAULT_PORT="${APIGENE_DEFAULT_PORT:-8080}"
 
-# Single release pin — bump this when shipping a new stack version.
-APIGENE_DEFAULT_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
+# Default image tag when APIGENE_IMAGE_TAG is unset (matches .env.example and docker-compose.yml).
+APIGENE_DEFAULT_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG:-latest}"
 
 # Per-service overrides fall back to APIGENE_DEFAULT_IMAGE_TAG when unset.
 APIGENE_DEFAULT_BACKEND_IMAGE_TAG="${APIGENE_DEFAULT_BACKEND_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
