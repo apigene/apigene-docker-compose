@@ -175,7 +175,7 @@ cmd_test() {
   for service in "${SERVICES[@]}"; do check_container_running "$service"; done
 
   section "Docker healthchecks"
-  for service in mongo redis backend nginx; do check_container_healthy "$service"; done
+  for service in mongo redis backend backend-worker mcp-gw nginx copilot; do check_container_healthy "$service"; done
 
   section "Data stores"
   local redis_id mongo_id
