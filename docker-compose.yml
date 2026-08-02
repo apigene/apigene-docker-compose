@@ -134,11 +134,20 @@ services:
     image: public.ecr.aws/apigene/apigene-nginx:${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_IMAGE_TAG:-latest}}
     platform: linux/amd64
     restart: unless-stopped
+    environment:
+      APIGENE_PORT: ${APIGENE_PORT:-8080}
     ports:
-      - "${APIGENE_PORT:-8080}:8080"
+      # Same port host↔container so Copilot (network_mode: service:nginx) can
+      # reach http://localhost:$APIGENE_PORT for server-side API calls.
+      - "${APIGENE_PORT:-8080}:${APIGENE_PORT:-8080}"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    entrypoint: ["nginx", "-g", "daemon off;"]
+      - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "sed \"s/listen 8080;/listen $${APIGENE_PORT:-8080};/\" /etc/nginx/nginx.conf.template > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
+      ]
     depends_on:
       backend:
         condition: service_healthy
