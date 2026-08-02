@@ -7,6 +7,7 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with Dock
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
 - Docker **must be running** before you install or start the stack
 - First boot downloads container images and can take several minutes
+- **Windows:** use [WSL2](https://learn.microsoft.com/windows/wsl/install) with Docker Desktop’s WSL backend; run the installer inside Ubuntu/WSL, not PowerShell or CMD
 
 ## Quick start
 
