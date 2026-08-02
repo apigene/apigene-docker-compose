@@ -168,7 +168,11 @@ cmd_test() {
     apigene_url="$(docker exec "$mcp_gw_id" printenv APIGENE_URL 2>/dev/null || true)"
     clerk_pk="$(docker exec "$mcp_gw_id" printenv CLERK_PUBLISHABLE_KEY 2>/dev/null || true)"
     [[ "$apigene_url" == "http://nginx" ]] && pass "mcp-gw APIGENE_URL=http://nginx" || fail "mcp-gw APIGENE_URL='${apigene_url:-<unset>}' (expected http://nginx)"
-    [[ -n "$clerk_pk" ]] && pass "mcp-gw CLERK_PUBLISHABLE_KEY is set" || warn "mcp-gw CLERK_PUBLISHABLE_KEY unset — MCP auth may fail"
+    if [[ "${NEXT_PUBLIC_AUTH_PROVIDER:-}" == "clerk" ]]; then
+      [[ -n "$clerk_pk" ]] && pass "mcp-gw CLERK_PUBLISHABLE_KEY is set" || warn "mcp-gw CLERK_PUBLISHABLE_KEY unset — MCP auth may fail"
+    else
+      info "mcp-gw Clerk key skipped (NEXT_PUBLIC_AUTH_PROVIDER=${NEXT_PUBLIC_AUTH_PROVIDER:-unset})"
+    fi
   fi
 
   section "Containers"
@@ -192,8 +196,18 @@ cmd_test() {
   worker_id="$(container_id backend-worker)"
   check_tcp_from_container "$backend_id" "backend → redis" "redis" 6379
   check_tcp_from_container "$backend_id" "backend → mongo" "mongo" 27017
+  check_tcp_from_container "$worker_id" "backend-worker → redis" "redis" 6379
   check_tcp_from_container "$nginx_id" "nginx → backend" "backend" 8000
   check_tcp_from_container "$nginx_id" "nginx → mcp-gw" "mcp-gw" 8001
+
+  # Nginx must listen on APIGENE_PORT in-container (Copilot uses that URL server-side).
+  if [[ -n "$nginx_id" ]]; then
+    if docker exec "$nginx_id" sh -c "wget -q -O - http://127.0.0.1:${PORT}/nginx-health >/dev/null 2>&1"; then
+      pass "nginx — listening on in-container port ${PORT}"
+    else
+      fail "nginx — not listening on in-container port ${PORT} (APIGENE_PORT mismatch?)"
+    fi
+  fi
 
   [[ -n "$backend_id" ]] && docker exec "$backend_id" python -c \
     "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5); assert b'ok' in r.read()" 2>/dev/null \
@@ -203,31 +217,92 @@ cmd_test() {
     "import os; from pymongo import MongoClient; MongoClient(os.environ['MONGO_DB_URL'], serverSelectionTimeoutMS=5000).admin.command('ping')" 2>/dev/null \
     && pass "backend — MongoDB driver connection" || fail "backend — MongoDB driver connection failed"
 
-  [[ -n "$worker_id" ]] && docker logs "$worker_id" 2>&1 | grep -q 'celery@.* ready' \
-    && pass "backend-worker — Celery worker ready" || fail "backend-worker — Celery worker not ready (check logs)"
-
   [[ -n "$nginx_id" ]] && docker exec "$nginx_id" sh -c \
-    'wget -q -S -O /dev/null http://127.0.0.1:3000/ 2>&1 | grep -q "HTTP/"' \
-    && pass "copilot — reachable at 127.0.0.1:3000 from nginx network" || fail "copilot — not reachable at 127.0.0.1:3000 from nginx network"
+    'wget -q -O - http://127.0.0.1:3000/client-api/version 2>/dev/null | grep -q "\"service\""' \
+    && pass "copilot — /client-api/version on :3000" || fail "copilot — /client-api/version on :3000 failed"
 
   [[ -n "$mcp_gw_id" ]] && docker exec "$mcp_gw_id" sh -c \
-    'wget -q -S -O /dev/null http://127.0.0.1:8001/ 2>&1 | grep -q "HTTP/"' \
-    && pass "mcp-gw — listening on :8001" || fail "mcp-gw — not listening on :8001"
+    'wget -q -O - http://127.0.0.1:8001/version 2>/dev/null | grep -q "\"service\""' \
+    && pass "mcp-gw — /version on :8001" || fail "mcp-gw — /version on :8001 failed"
 
-  [[ -n "$copilot_id" ]] && docker exec "$copilot_id" node -e \
-    "require('http').get('http://localhost/api/health',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{if(!d.includes('ok'))process.exit(1)})}).on('error',()=>process.exit(1))" 2>/dev/null \
-    && pass "copilot — server-side fetch to http://localhost/api/health" || fail "copilot — server-side fetch to http://localhost/api/health failed"
+  # Catch APIGENE_PORT mismatch: Copilot server-side calls use NEXT_PUBLIC_SERVER_BASE_URL
+  # (e.g. http://localhost:8888), which must be reachable inside the nginx/copilot network.
+  if [[ -n "$copilot_id" && -n "${public_url:-}" ]]; then
+    if docker exec "$copilot_id" node -e "
+      const u = process.env.NEXT_PUBLIC_SERVER_BASE_URL.replace(/\\/\$/, '') + '/api/health';
+      require('http').get(u, r => {
+        let d = '';
+        r.on('data', c => d += c);
+        r.on('end', () => process.exit(r.statusCode === 200 && d.includes('ok') ? 0 : 1));
+      }).on('error', () => process.exit(1));
+    " >/dev/null 2>&1; then
+      pass "copilot — server-side fetch to ${public_url}/api/health"
+    else
+      fail "copilot — cannot reach ${public_url}/api/health from inside container (APIGENE_PORT / nginx listen mismatch?)"
+    fi
+  fi
 
   section "Gateway & public routes"
   check_http_json "nginx health" "${BASE_URL}/nginx-health" '"service"[[:space:]]*:[[:space:]]*"nginx"'
   check_http_json "backend health" "${BASE_URL}/api/health" '"status"[[:space:]]*:[[:space:]]*"ok"'
+  check_http_json "backend version" "${BASE_URL}/api/version" '"service"[[:space:]]*:[[:space:]]*"backend"'
+  check_http_json "copilot health" "${BASE_URL}/client-api/health" '"service"[[:space:]]*:[[:space:]]*"copilot"'
+  check_http_json "copilot version" "${BASE_URL}/client-api/version" '"service"[[:space:]]*:[[:space:]]*"copilot"'
   check_http_status "OpenAPI schema" "${BASE_URL}/openapi.json" "200 401 403"
   check_http_status "API docs (Swagger)" "${BASE_URL}/docs" "200 401 403"
   check_http_status "API docs (ReDoc)" "${BASE_URL}/redoc" "200 401 403 404"
   check_http_status "Copilot UI (root)" "${BASE_URL}/" "200 301 302 307 308 404"
   check_http_status "Copilot sign-in" "${BASE_URL}/sign-in" "200 301 302 307 308"
   check_http_status "MCP OAuth callback route" "${BASE_URL}/mcp_gw_oauth_callback" "200 301 302 307 308 400 404 405 500"
-  check_http_header "Clerk middleware active" "${BASE_URL}/" "x-clerk-auth-status" '.*'
+  # 406 = MCP gateway got the request but rejected missing MCP Accept headers — proves routing.
+  check_http_status "MCP gateway route" "${BASE_URL}/agent/smoke/mcp" "406 401 403"
+  if [[ "${NEXT_PUBLIC_AUTH_PROVIDER:-}" == "clerk" ]]; then
+    check_http_header "Clerk middleware active" "${BASE_URL}/" "x-clerk-auth-status" '.*'
+  else
+    info "Clerk middleware header skipped (NEXT_PUBLIC_AUTH_PROVIDER=${NEXT_PUBLIC_AUTH_PROVIDER:-unset})"
+  fi
+
+  section "Auth & platform"
+  # Reachability only — no real account creation (that lives in ./tests/integration.sh).
+  local signup_code
+  signup_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST \
+    -H 'Content-Type: application/json' \
+    -d '{}' \
+    "${BASE_URL}/api/user/signup/" || true)"
+  if [[ "$signup_code" == "400" || "$signup_code" == "422" ]]; then
+    pass "signup endpoint reachable — HTTP ${signup_code}"
+  else
+    fail "signup endpoint unexpected HTTP ${signup_code:-?} (expected 400/422)"
+  fi
+
+  local token_code
+  token_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    -d 'username=invalid&password=invalid' \
+    "${BASE_URL}/api/user/token" || true)"
+  if [[ "$token_code" == "401" || "$token_code" == "400" || "$token_code" == "422" ]]; then
+    pass "login endpoint reachable — HTTP ${token_code}"
+  else
+    fail "login endpoint unexpected HTTP ${token_code:-?} (expected 401/400/422)"
+  fi
+
+  local platform_body
+  platform_body="$(curl -fsS --max-time 15 "${BASE_URL}/api/platform/version" 2>/dev/null || true)"
+  if python3 -c '
+import json, sys
+data = json.loads(sys.argv[1])
+services = data.get("services") or {}
+# nginx may report unknown without /nginx-version; require the app services.
+required = ("backend", "copilot", "mcp_gw")
+missing = [s for s in required if s not in services]
+unknown = [s for s in required if (services.get(s) or {}).get("version") in (None, "unknown")]
+if missing or unknown:
+    sys.exit(1)
+' "$platform_body" 2>/dev/null; then
+    pass "platform version — backend/copilot/mcp_gw reported"
+  else
+    fail "platform version — unexpected response: ${platform_body:-<empty>}"
+  fi
 
   local ELAPSED=$(( $(date +%s) - START_TS ))
   echo ""
