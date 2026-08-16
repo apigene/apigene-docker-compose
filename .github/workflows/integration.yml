@@ -208,3 +208,87 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v --remove-orphans
+
+  # Slack status for smoke + API integration (success or failure).
+  notify:
+    name: Notify Slack
+    needs: [integration]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Slack payload
+        env:
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RAW: ${{ github.event.head_commit.message || github.event.pull_request.title || github.event_name }}
+        run: |
+          SUBJECT=$(printf '%s' "$RAW" | head -n1 | tr -d '\r' | tr -d '[:cntrl:]')
+          if [ -z "$SUBJECT" ]; then
+            SUBJECT="No commit message available."
+          fi
+          case "$INTEGRATION_RESULT" in
+            success)
+              TITLE="docker-compose integration succeeded"
+              HEX="#2EB67D"
+              ;;
+            failure)
+              TITLE="docker-compose integration failed"
+              HEX="#E01E5A"
+              ;;
+            *)
+              TITLE="docker-compose integration finished"
+              HEX="#ECB22E"
+              ;;
+          esac
+          jq -n \
+            --arg title "$TITLE" \
+            --arg hex "$HEX" \
+            --arg result "$INTEGRATION_RESULT" \
+            --arg ref "$REF_NAME" \
+            --arg sha "${SHA:0:7}" \
+            --arg actor "$ACTOR" \
+            --arg event "$EVENT_NAME" \
+            --arg msg "$SUBJECT" \
+            --arg url "$RUN_URL" \
+            '{
+              text: ($title + " — " + $ref),
+              attachments: [
+                {
+                  color: $hex,
+                  blocks: [
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: ("*" + $title + "* · `" + $ref + "` · `" + $sha + "`\nresult=`" + $result + "` · event=`" + $event + "` · `" + $actor + "`\n" + $msg)
+                      }
+                    },
+                    {
+                      type: "actions",
+                      elements: [
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "View workflow",
+                            emoji: false
+                          },
+                          url: $url
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }' > "$RUNNER_TEMP/slack-payload.json"
+
+      - name: Send Slack Notification
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}
+          webhook-type: incoming-webhook
+          payload-file-path: ${{ runner.temp }}/slack-payload.json
