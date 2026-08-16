@@ -28,6 +28,9 @@ x-apigene-local-env: &local-env
   REDIS_CACHE_DB: "1"
   TENANT_NAME: ${TENANT_NAME:-local}
   DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:-SaaS}
+  # OnPrem only (when DEPLOYMENT_TYPE=OnPrem) — loaded from .env via env_file as well
+  LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+  LICENSE_ALGORITHM: ${LICENSE_ALGORITHM:-RS256}
   UVICORN_WORKERS: "1"
   # Local default: http://localhost:$APIGENE_PORT. Set NEXT_PUBLIC_SERVER_BASE_URL for a
   # custom domain, LAN IP, or HTTPS URL; ALLOWED_ORIGINS follows unless overridden.
