@@ -210,13 +210,27 @@ jobs:
         run: docker compose down -v --remove-orphans
 
   # Slack status for smoke + API integration (success or failure).
+  # Requires repository (or org) secret SLACK_WEBHOOK_DEPLOYMENT — same as apigene-backend CI.
   notify:
     name: Notify Slack
     needs: [integration]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
+      - name: Check Slack webhook configured
+        id: slack_cfg
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SLACK_WEBHOOK_DEPLOYMENT is not configured; skipping Slack notification."
+          fi
+
       - name: Build Slack payload
+        if: steps.slack_cfg.outputs.enabled == 'true'
         env:
           INTEGRATION_RESULT: ${{ needs.integration.result }}
           REF_NAME: ${{ github.ref_name }}
@@ -287,8 +301,11 @@ jobs:
             }' > "$RUNNER_TEMP/slack-payload.json"
 
       - name: Send Slack Notification
+        if: steps.slack_cfg.outputs.enabled == 'true'
         uses: slackapi/slack-github-action@v4.0.0
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYMENT }}
+          webhook: ${{ env.SLACK_WEBHOOK }}
           webhook-type: incoming-webhook
           payload-file-path: ${{ runner.temp }}/slack-payload.json
