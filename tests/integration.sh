@@ -128,7 +128,10 @@ info "Org:      ${ORG_NAME}"
 info "Email:    ${EMAIL}"
 
 section "Compose validation"
-if apigene_runtime_init && apigene_compose config -q >/dev/null 2>&1; then
+# podman-compose 1.0.x has no `config` subcommand. `up` already parsed the file.
+if apigene_compose_is_podman_compose_v1; then
+  info "compose config skipped (podman-compose 1.0.x has no config command)"
+elif apigene_runtime_init && apigene_compose config -q >/dev/null 2>&1; then
   pass "compose config is valid (${APIGENE_RUNTIME})"
 else
   fail "compose config failed"
