@@ -301,7 +301,11 @@ jobs:
           sudo mkdir -p /etc/containers/registries.conf.d
           printf 'unqualified-search-registries = ["docker.io"]\n' | sudo tee /etc/containers/registries.conf.d/99-docker-io.conf >/dev/null
           sudo systemctl enable --now podman.socket
+          # Ubuntu tmpfiles creates /run/podman mode 0750 root:root. A world-writable
+          # socket is still unreachable until the directory itself is traversable.
+          sudo chmod 755 /run/podman
           sudo chmod 666 /run/podman/podman.sock
+          ls -ld /run/podman /run/podman/podman.sock
           docker compose version
           docker info
 
@@ -502,7 +506,11 @@ jobs:
           sudo mkdir -p /etc/containers/registries.conf.d
           printf 'unqualified-search-registries = ["docker.io"]\n' | sudo tee /etc/containers/registries.conf.d/99-docker-io.conf >/dev/null
           sudo systemctl enable --now podman.socket
+          # Ubuntu tmpfiles creates /run/podman mode 0750 root:root. A world-writable
+          # socket is still unreachable until the directory itself is traversable.
+          sudo chmod 755 /run/podman
           sudo chmod 666 /run/podman/podman.sock
+          ls -ld /run/podman /run/podman/podman.sock
           echo "podman $(podman --version)"
           podman compose version
           podman compose version | grep -q '1.0.3'
