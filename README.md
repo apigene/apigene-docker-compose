@@ -8,6 +8,7 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with Dock
   - [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine + Compose v2
   - Linux with Podman 4.7 or newer and Docker Compose v2 ([Linux with Podman](#linux-with-podman))
 - First boot downloads container images and can take several minutes
+- Air-gapped hosts load an image archive first ([Air-gapped install](#air-gapped-install))
 - **Windows:** use [WSL2](https://learn.microsoft.com/windows/wsl/install) with Docker Desktop’s WSL backend; run the installer inside Ubuntu/WSL, not PowerShell or CMD
 
 ## Quick start
@@ -231,12 +232,39 @@ Published images are `linux/amd64`. On an arm64 host, install qemu user-mode emu
 
 To point Compose at a specific socket, set `DOCKER_HOST` (for example `unix:///run/podman/podman.sock`).
 
+## Air-gapped install
+
+Build the image archive on a machine that can reach the registries. Load it on the air-gapped machine. The file is a gzip-compressed Docker archive, so a file saved by Docker loads into Podman, and a file saved by Podman loads into Docker.
+
+On the connected machine, pin the tags in `.env`, then save. `./apigene images save` pulls `linux/amd64` unless `APIGENE_IMAGE_PLATFORM` is set, including MongoDB (`mongo:7`) and Redis (`redis:7-alpine`).
+
+```bash
+./apigene images save
+```
+
+That writes `apigene-images.tar.gz` in the current directory. Pass another path to change it: `./apigene images save /tmp/apigene-images.tar.gz`.
+
+Copy the stack files, `.env`, and `apigene-images.tar.gz` to the air-gapped machine. Docker or Podman is already installed there. Load the archive and start without a pull:
+
+```bash
+./apigene images load
+./apigene start
+```
+
+`./apigene images load /tmp/apigene-images.tar.gz` loads a file that is not in the current directory. Keep the same `APIGENE_IMAGE_REGISTRY` and tags in `.env` that were used when the archive was saved. The loaded names have to match those settings.
+
+`./apigene setup` and `./apigene start --pull` contact the registry. On the air-gapped machine, use `./apigene images load` and `./apigene start`.
+
+Chat needs a model endpoint this host can reach. A cloud LLM provider is unreachable from an air-gapped network.
+
 ## CLI reference
 
 ```bash
 ./apigene setup              # First-time: create .env, pull images, start
 ./apigene start              # Start all services
 ./apigene start --pull       # Pull images, then start (skips local name:tag images)
+./apigene images save        # Pull stack images into apigene-images.tar.gz
+./apigene images load        # Load apigene-images.tar.gz into Docker or Podman
 ./apigene test               # Run health checks on the full stack
 ./apigene logs               # Tail colored logs
 ./apigene logs backend       # Tail a specific service

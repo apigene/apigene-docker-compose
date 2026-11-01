@@ -18,6 +18,8 @@ source "$APIGENE_ROOT/lib/cmd_stop.sh"
 source "$APIGENE_ROOT/lib/cmd_test.sh"
 # shellcheck disable=SC1091
 source "$APIGENE_ROOT/lib/cmd_logs.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_images.sh"
 
 apigene_usage() {
   apigene_banner "Apigene CLI"
@@ -30,6 +32,8 @@ Commands:
   stop [--volumes]   Stop services (optionally delete Mongo data)
   test               Run health checks on the full stack
   logs [services]    Tail colored logs (add --raw for plain output)
+  images save        Pull the stack images and write apigene-images.tar.gz
+  images load        Load apigene-images.tar.gz into Docker or Podman
 
 Examples:
   ./apigene setup
@@ -39,6 +43,8 @@ Examples:
   ./apigene stop
   ./apigene stop --volumes
   ./apigene logs backend
+  ./apigene images save
+  ./apigene images load
 
 Options:
   -h, --help         Show help for a command or this overview
@@ -73,6 +79,10 @@ main() {
     logs)
       shift
       cmd_logs "$@"
+      ;;
+    images)
+      shift
+      cmd_images "$@"
       ;;
     *)
       apigene_err "Unknown command: $cmd"

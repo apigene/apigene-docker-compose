@@ -79,6 +79,8 @@ chmod +x apigene
 | `./apigene setup` | Create `.env`, pull images, start |
 | `./apigene start` | Start all services |
 | `./apigene start --pull` | Pull images, then start. Skips local `name:tag` images |
+| `./apigene images save` | Pull the stack images and write `apigene-images.tar.gz` |
+| `./apigene images load` | Load that archive into Docker or Podman |
 | `./apigene test` | Health checks |
 | `./apigene logs [service]` | Tail logs |
 | `./apigene stop` | Stop (keeps Mongo data) |
