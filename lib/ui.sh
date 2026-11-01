@@ -142,11 +142,33 @@ apigene_print_images() {
   apigene_info "nginx:     ${APIGENE_NGINX_IMAGE}"
 }
 
+# Literal `image:` under a service. Skips values that still contain a compose substitution.
+apigene_literal_service_image() {
+  local service="$1" image
+  image="$(awk -v svc="$service" '
+    $0 ~ "^  " svc ":$" { found=1; next }
+    found && /^  [^[:space:]]/ { exit }
+    found && $1 == "image:" { print $2; exit }
+  ' docker-compose.yml)"
+  image="${image#\"}"
+  image="${image%\"}"
+  image="${image#\'}"
+  image="${image%\'}"
+  if [[ -z "$image" || "$image" == *'${'* ]]; then
+    apigene_err "No literal image for ${service} in docker-compose.yml"
+    return 1
+  fi
+  printf '%s\n' "$image"
+}
+
 # Pull remote images. name:tag references stay on the machine.
+# podman-compose 1.0.3 accepts `pull` with no service names. A name list is
+# "unrecognized arguments" and the command exits 2.
 apigene_pull_images() {
   local -a services=(mongo redis)
   local -a local_images=()
-  local spec image service
+  local -a remote_refs=()
+  local spec image service line ref
 
   apigene_runtime_init || return 1
 
@@ -162,6 +184,7 @@ apigene_pull_images() {
       local_images+=("${service}  ${image}")
       continue
     fi
+    remote_refs+=("$image")
     services+=("$service")
     if [[ "$service" == "backend" ]]; then
       services+=(backend-worker)
@@ -170,18 +193,33 @@ apigene_pull_images() {
 
   if [[ ${#local_images[@]} -gt 0 ]]; then
     apigene_info "Local images — leaving these on the machine:"
-    local line
     for line in "${local_images[@]}"; do
       apigene_info "  ${line}"
     done
   fi
 
-  if [[ ${#local_images[@]} -eq 4 ]]; then
+  if [[ ${#remote_refs[@]} -eq 0 ]]; then
     apigene_step "Pulling mongo and redis"
   else
     apigene_step "Pulling images"
   fi
-  apigene_compose pull "${services[@]}"
+
+  if apigene_compose_is_podman_compose_v1; then
+    if [[ ${#local_images[@]} -eq 0 ]]; then
+      apigene_compose pull
+    else
+      # A bare pull also fetches name:tag images, so pull the remote refs directly.
+      apigene_ctr pull "$(apigene_literal_service_image mongo)"
+      apigene_ctr pull "$(apigene_literal_service_image redis)"
+      if [[ ${#remote_refs[@]} -gt 0 ]]; then
+        for ref in "${remote_refs[@]}"; do
+          apigene_ctr pull "$ref"
+        done
+      fi
+    fi
+  else
+    apigene_compose pull "${services[@]}"
+  fi
   apigene_ok "Images up to date"
 }
 
