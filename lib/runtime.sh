@@ -116,6 +116,29 @@ apigene_service_id() {
   printf '%s\n' "$filtered" | sed '/^[[:space:]]*$/d' | head -1
 }
 
+# True when the compose log viewer should be wired in.
+apigene_log_viewer_enabled() {
+  local v
+  v="$(printf '%s' "${APIGENE_LOG_VIEWER:-}" | tr '[:upper:]' '[:lower:]')"
+  [[ "$v" == "true" || "$v" == "1" || "$v" == "yes" ]]
+}
+
+# Call after the env file is loaded. Sets COMPOSE_FILE so every compose
+# invocation (start, stop, logs, test) sees the same project.
+apigene_configure_compose_files() {
+  if apigene_log_viewer_enabled; then
+    mkdir -p .apigene
+    cat > .apigene/nginx-log-viewer.conf <<'EOF'
+log_format apigene_json escape=json '{"ts":"$time_iso8601","service":"nginx","line":"$status $request"}';
+access_log /var/log/apigene/nginx.jsonl apigene_json;
+error_log /var/log/apigene/nginx-error.log warn;
+EOF
+    export COMPOSE_FILE="docker-compose.yml:docker-compose.logs.yml"
+  else
+    export COMPOSE_FILE="docker-compose.yml"
+  fi
+}
+
 apigene_compose() {
   apigene_runtime_init || return 1
   "${APIGENE_COMPOSE[@]}" "$@"

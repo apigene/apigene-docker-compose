@@ -181,6 +181,7 @@ services:
       - "${APIGENE_PORT:-8080}:${APIGENE_PORT:-8080}"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/log-viewer.conf:/etc/nginx/log-viewer.conf:ro
     entrypoint:
       [
         "/bin/sh",

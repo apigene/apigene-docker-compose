@@ -128,6 +128,9 @@ apigene_load_env() {
   if [[ -z "${ALLOWED_ORIGINS:-}" ]]; then
     export ALLOWED_ORIGINS="${NEXT_PUBLIC_SERVER_BASE_URL}"
   fi
+  if declare -F apigene_configure_compose_files >/dev/null 2>&1; then
+    apigene_configure_compose_files
+  fi
 }
 
 apigene_print_images() {

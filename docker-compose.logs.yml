@@ -1,0 +1,53 @@
+# Merged only when APIGENE_LOG_VIEWER=true (see lib/runtime.sh).
+# Stdout is unchanged. Each app also appends JSONL under /var/log/apigene.
+
+services:
+  backend:
+    volumes:
+      - apigene_logs:/var/log/apigene
+      - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
+      - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
+    entrypoint: ["/bin/sh", "/opt/apigene/log-exec.sh", "backend", "./start.sh"]
+    command: ["app"]
+
+  backend-worker:
+    volumes:
+      - apigene_logs:/var/log/apigene
+      - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
+      - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
+    entrypoint:
+      ["/bin/sh", "/opt/apigene/log-exec.sh", "backend-worker", "./start.sh"]
+    command: ["celery"]
+
+  copilot:
+    environment:
+      APIGENE_LOG_VIEWER: "true"
+      LOG_DIR: /var/log/apigene
+    volumes:
+      - apigene_logs:/var/log/apigene
+      - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
+      - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
+    entrypoint: ["/bin/sh", "/opt/apigene/log-exec.sh", "copilot", "node"]
+    command: ["server.js"]
+
+  mcp-gw:
+    volumes:
+      - apigene_logs:/var/log/apigene
+      - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
+      - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
+    entrypoint: ["/bin/sh", "/opt/apigene/log-exec.sh", "mcp-gw", "node"]
+    command: ["dist/server.js"]
+
+  nginx:
+    volumes:
+      - apigene_logs:/var/log/apigene
+      - ./.apigene/nginx-log-viewer.conf:/etc/nginx/log-viewer.conf:ro
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "mkdir -p /var/log/apigene && chmod 1777 /var/log/apigene && sed \"s/listen 8080;/listen $${APIGENE_PORT:-8080};/\" /etc/nginx/nginx.conf.template > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
+      ]
+
+volumes:
+  apigene_logs:

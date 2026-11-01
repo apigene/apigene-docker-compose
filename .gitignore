@@ -2,3 +2,4 @@
 .DS_Store
 apigene-images.tar
 apigene-images.tar.gz
+.apigene/

@@ -48,6 +48,9 @@ cmd_start() {
   apigene_info "Health:    ${APIGENE_BASE_URL}/nginx-health"
   apigene_info "API:       ${APIGENE_BASE_URL}/api/health"
   apigene_info "Docs:      ${APIGENE_BASE_URL}/docs"
+  if apigene_log_viewer_enabled; then
+    apigene_info "Logs UI:   ${APIGENE_BASE_URL}/log-viewer"
+  fi
 
   echo ""
   apigene_warn "First boot may take 1–2 minutes for all services to become healthy."
