@@ -58,11 +58,16 @@ apigene_step() {
 apigene_load_env() {
   APIGENE_PORT="${APIGENE_DEFAULT_PORT}"
   APIGENE_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
+  APIGENE_IMAGE_REGISTRY=""
   APIGENE_BACKEND_IMAGE_TAG=""
   APIGENE_COPILOT_IMAGE_TAG=""
   APIGENE_MCP_GW_IMAGE_TAG=""
   APIGENE_NGINX_IMAGE_TAG=""
-  local explicit_base_url=""
+  APIGENE_BACKEND_IMAGE_NAME=""
+  APIGENE_COPILOT_IMAGE_NAME=""
+  APIGENE_MCP_GW_IMAGE_NAME=""
+  APIGENE_NGINX_IMAGE_NAME=""
+  local explicit_base_url="" registry_set=0
 
   if [[ -f .env ]]; then
     explicit_base_url="$(apigene_env_file_value .env NEXT_PUBLIC_SERVER_BASE_URL || true)"
@@ -72,6 +77,14 @@ apigene_load_env() {
     APIGENE_COPILOT_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_COPILOT_IMAGE_TAG || true)"
     APIGENE_MCP_GW_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_MCP_GW_IMAGE_TAG || true)"
     APIGENE_NGINX_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_NGINX_IMAGE_TAG || true)"
+    APIGENE_BACKEND_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_BACKEND_IMAGE_NAME || true)"
+    APIGENE_COPILOT_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_COPILOT_IMAGE_NAME || true)"
+    APIGENE_MCP_GW_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_MCP_GW_IMAGE_NAME || true)"
+    APIGENE_NGINX_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_NGINX_IMAGE_NAME || true)"
+    # An explicit empty registry means local name:tag images. A missing key does not.
+    if apigene_env_file_has_key .env APIGENE_IMAGE_REGISTRY; then
+      registry_set=1
+    fi
 
     # shellcheck disable=SC1091
     set -a
@@ -86,16 +99,90 @@ apigene_load_env() {
   APIGENE_COPILOT_IMAGE_TAG="${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
   APIGENE_MCP_GW_IMAGE_TAG="${APIGENE_MCP_GW_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
   APIGENE_NGINX_IMAGE_TAG="${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
+  APIGENE_BACKEND_IMAGE_NAME="${APIGENE_BACKEND_IMAGE_NAME:-${APIGENE_DEFAULT_BACKEND_IMAGE_NAME}}"
+  APIGENE_COPILOT_IMAGE_NAME="${APIGENE_COPILOT_IMAGE_NAME:-${APIGENE_DEFAULT_COPILOT_IMAGE_NAME}}"
+  APIGENE_MCP_GW_IMAGE_NAME="${APIGENE_MCP_GW_IMAGE_NAME:-${APIGENE_DEFAULT_MCP_GW_IMAGE_NAME}}"
+  APIGENE_NGINX_IMAGE_NAME="${APIGENE_NGINX_IMAGE_NAME:-${APIGENE_DEFAULT_NGINX_IMAGE_NAME}}"
+  if [[ "$registry_set" -eq 0 ]]; then
+    APIGENE_IMAGE_REGISTRY="${APIGENE_DEFAULT_IMAGE_REGISTRY}"
+  fi
+  APIGENE_IMAGE_REGISTRY="$(apigene_normalize_image_registry "${APIGENE_IMAGE_REGISTRY}")"
+  APIGENE_BACKEND_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_BACKEND_IMAGE_NAME}" "${APIGENE_BACKEND_IMAGE_TAG}")"
+  APIGENE_COPILOT_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_COPILOT_IMAGE_NAME}" "${APIGENE_COPILOT_IMAGE_TAG}")"
+  APIGENE_MCP_GW_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_MCP_GW_IMAGE_NAME}" "${APIGENE_MCP_GW_IMAGE_TAG}")"
+  APIGENE_NGINX_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_NGINX_IMAGE_NAME}" "${APIGENE_NGINX_IMAGE_TAG}")"
   # Compose interpolation is single-level so podman-compose 1.0.3 can parse it.
-  # Export the resolved tags and the port-derived public URL for that step.
-  export APIGENE_IMAGE_TAG APIGENE_BACKEND_IMAGE_TAG APIGENE_COPILOT_IMAGE_TAG \
-    APIGENE_MCP_GW_IMAGE_TAG APIGENE_NGINX_IMAGE_TAG
+  # Export the resolved pieces and the port-derived public URL for that step.
+  # APIGENE_IMAGE_REGISTRY uses ${VAR-default} in the compose file: empty stays
+  # empty, and a missing key falls back to public ECR.
+  export APIGENE_IMAGE_TAG APIGENE_IMAGE_REGISTRY \
+    APIGENE_BACKEND_IMAGE_TAG APIGENE_COPILOT_IMAGE_TAG \
+    APIGENE_MCP_GW_IMAGE_TAG APIGENE_NGINX_IMAGE_TAG \
+    APIGENE_BACKEND_IMAGE_NAME APIGENE_COPILOT_IMAGE_NAME \
+    APIGENE_MCP_GW_IMAGE_NAME APIGENE_NGINX_IMAGE_NAME \
+    APIGENE_BACKEND_IMAGE APIGENE_COPILOT_IMAGE \
+    APIGENE_MCP_GW_IMAGE APIGENE_NGINX_IMAGE
   if [[ -z "${NEXT_PUBLIC_SERVER_BASE_URL:-}" ]]; then
     export NEXT_PUBLIC_SERVER_BASE_URL="${APIGENE_BASE_URL}"
   fi
   if [[ -z "${ALLOWED_ORIGINS:-}" ]]; then
     export ALLOWED_ORIGINS="${NEXT_PUBLIC_SERVER_BASE_URL}"
   fi
+}
+
+apigene_print_images() {
+  if [[ -n "${APIGENE_IMAGE_REGISTRY}" ]]; then
+    apigene_info "Registry:  ${APIGENE_IMAGE_REGISTRY}"
+  else
+    apigene_info "Registry:  local images"
+  fi
+  apigene_info "backend:   ${APIGENE_BACKEND_IMAGE}"
+  apigene_info "copilot:   ${APIGENE_COPILOT_IMAGE}"
+  apigene_info "mcp-gw:    ${APIGENE_MCP_GW_IMAGE}"
+  apigene_info "nginx:     ${APIGENE_NGINX_IMAGE}"
+}
+
+# Pull remote images. name:tag references stay on the machine.
+apigene_pull_images() {
+  local -a services=(mongo redis)
+  local -a local_images=()
+  local spec image service
+
+  apigene_runtime_init || return 1
+
+  for spec in \
+    "backend|${APIGENE_BACKEND_IMAGE}" \
+    "copilot|${APIGENE_COPILOT_IMAGE}" \
+    "mcp-gw|${APIGENE_MCP_GW_IMAGE}" \
+    "nginx|${APIGENE_NGINX_IMAGE}"
+  do
+    service="${spec%%|*}"
+    image="${spec#*|}"
+    if apigene_image_is_local "$image"; then
+      local_images+=("${service}  ${image}")
+      continue
+    fi
+    services+=("$service")
+    if [[ "$service" == "backend" ]]; then
+      services+=(backend-worker)
+    fi
+  done
+
+  if [[ ${#local_images[@]} -gt 0 ]]; then
+    apigene_info "Local images — leaving these on the machine:"
+    local line
+    for line in "${local_images[@]}"; do
+      apigene_info "  ${line}"
+    done
+  fi
+
+  if [[ ${#local_images[@]} -eq 4 ]]; then
+    apigene_step "Pulling mongo and redis"
+  else
+    apigene_step "Pulling images"
+  fi
+  apigene_compose pull "${services[@]}"
+  apigene_ok "Images up to date"
 }
 
 apigene_require_env() {

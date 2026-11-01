@@ -58,9 +58,10 @@ Default URL: `http://localhost:8080` (or `APIGENE_PORT`).
 
 ### Pin or upgrade images
 
-1. Set `APIGENE_IMAGE_TAG` in `.env` (default `latest` in example)
-2. `./apigene start --pull`
-3. Align version with `apigene-helm-chart` `imageTag` for releases
+1. Set `APIGENE_IMAGE_TAG` in `.env` (default `latest`). Override one service with `APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, or `APIGENE_NGINX_IMAGE_TAG`. Backend and the worker share the backend tag.
+2. `APIGENE_IMAGE_REGISTRY` defaults to `public.ecr.aws/apigene/` (trailing slash). Leave it empty for images already on the machine (`apigene-backend:<tag>`). Optional `APIGENE_*_IMAGE_NAME` overrides the published name.
+3. `./apigene start --pull` — skips Apigene images whose resolved ref is `name:tag`, and still pulls MongoDB and Redis.
+4. Align the public tag with `apigene-helm-chart` `imageTag` for releases.
 
 ## Local dev
 
@@ -77,7 +78,7 @@ chmod +x apigene
 |---------|---------|
 | `./apigene setup` | Create `.env`, pull images, start |
 | `./apigene start` | Start all services |
-| `./apigene start --pull` | Pull latest images, then start |
+| `./apigene start --pull` | Pull images, then start. Skips local `name:tag` images |
 | `./apigene test` | Health checks |
 | `./apigene logs [service]` | Tail logs |
 | `./apigene stop` | Stop (keeps Mongo data) |
@@ -85,7 +86,10 @@ chmod +x apigene
 ## Env vars that matter
 
 - `APIGENE_PORT` — host port nginx binds to (default `8080`)
-- `APIGENE_IMAGE_TAG` — pin release or use `latest`
+- `APIGENE_IMAGE_REGISTRY` — registry prefix with trailing slash; empty uses local `name:tag` images
+- `APIGENE_IMAGE_TAG` — default tag for every Apigene image (`latest` or a pinned release)
+- `APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, `APIGENE_NGINX_IMAGE_TAG` — optional per-image tags
+- `APIGENE_IMAGE_PLATFORM` — default `linux/amd64`; set `linux/arm64` for locally built Apple Silicon images
 - `DATABASE_ENV` — logical data isolation (default `local`)
 - `AUTH_APIGENE_SECRET_KEY` — auto-generated on setup; change for production
 - `NEXT_PUBLIC_SERVER_BASE_URL` — only needed for custom domain/LAN/HTTPS

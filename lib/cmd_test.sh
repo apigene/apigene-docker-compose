@@ -122,7 +122,11 @@ cmd_test() {
 
   apigene_banner "Apigene Test"
   info "Base URL:   ${C_BOLD}${BASE_URL}${C_RESET}"
-  info "Image tag:  ${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
+  if [[ -n "${APIGENE_BACKEND_IMAGE:-}" ]]; then
+    apigene_print_images
+  else
+    info "Image tag:  ${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
+  fi
   info "Project:    $(basename "$PWD")"
   info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 

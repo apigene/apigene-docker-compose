@@ -101,6 +101,67 @@ ALLOWED_ORIGINS=https://apigene.example.com,http://localhost:8080
 
 `APIGENE_PORT` still controls which **host port** Docker publishes nginx on. Put a reverse proxy in front when using HTTPS on a custom domain.
 
+### Container images
+
+Each Apigene image is `registry` + `name` + `tag`. MongoDB and Redis are unchanged.
+
+| Variable | Default | Role |
+|----------|---------|------|
+| `APIGENE_IMAGE_REGISTRY` | `public.ecr.aws/apigene/` | Registry prefix, including the trailing slash |
+| `APIGENE_IMAGE_TAG` | `latest` | Tag for backend, copilot, mcp-gw, and nginx |
+| `APIGENE_BACKEND_IMAGE_TAG` | `APIGENE_IMAGE_TAG` | Backend and the worker. They share one image |
+| `APIGENE_COPILOT_IMAGE_TAG` | `APIGENE_IMAGE_TAG` | Copilot tag |
+| `APIGENE_MCP_GW_IMAGE_TAG` | `APIGENE_IMAGE_TAG` | MCP gateway tag |
+| `APIGENE_NGINX_IMAGE_TAG` | `APIGENE_IMAGE_TAG` | Nginx tag |
+| `APIGENE_*_IMAGE_NAME` | published name | Optional name override (`apigene-backend`, `apigene-copilot`, `apigene-mcp-gw`, `apigene-nginx`) |
+| `APIGENE_IMAGE_PLATFORM` | `linux/amd64` | Set `linux/arm64` for images built on Apple Silicon |
+
+`./apigene` copies `APIGENE_IMAGE_TAG` onto any per-service tag that is unset, and adds a trailing slash when `APIGENE_IMAGE_REGISTRY` is missing one. An empty registry is kept empty.
+
+**Public ECR, one tag for every service:**
+
+```bash
+APIGENE_IMAGE_REGISTRY=public.ecr.aws/apigene/
+APIGENE_IMAGE_TAG=5.5.0
+```
+
+**Public ECR, backend 6.0.0 and the other services 5.5.0:**
+
+```bash
+APIGENE_IMAGE_REGISTRY=public.ecr.aws/apigene/
+APIGENE_IMAGE_TAG=5.5.0
+APIGENE_BACKEND_IMAGE_TAG=6.0.0
+```
+
+That resolves to:
+
+| Service | Image |
+|---------|-------|
+| backend, backend-worker | `public.ecr.aws/apigene/apigene-backend:6.0.0` |
+| copilot | `public.ecr.aws/apigene/apigene-copilot:5.5.0` |
+| mcp-gw | `public.ecr.aws/apigene/apigene-mcp-gw:5.5.0` |
+| nginx | `public.ecr.aws/apigene/apigene-nginx:5.5.0` |
+
+**Images already on this machine** (for example `docker build -t apigene-backend:6.0.0 .`). Leave the registry empty and use the same tags:
+
+```bash
+APIGENE_IMAGE_REGISTRY=
+APIGENE_IMAGE_TAG=5.5.0
+APIGENE_BACKEND_IMAGE_TAG=6.0.0
+```
+
+Compose then uses `apigene-backend:6.0.0`, `apigene-copilot:5.5.0`, `apigene-mcp-gw:5.5.0`, and `apigene-nginx:5.5.0`. `./apigene setup` and `./apigene start --pull` still pull MongoDB and Redis, and leave those four images on the machine.
+
+On Apple Silicon, images you build locally are `linux/arm64`. Set `APIGENE_IMAGE_PLATFORM=linux/arm64` for that install. The published ECR images are `linux/amd64`.
+
+**Another registry** (a trailing slash is required):
+
+```bash
+APIGENE_IMAGE_REGISTRY=localhost:5000/
+APIGENE_IMAGE_TAG=5.5.0
+APIGENE_BACKEND_IMAGE_TAG=6.0.0
+```
+
 | Variable | When to set | Description |
 |----------|-------------|-------------|
 | `APIGENE_PORT` | Always (local) | Host port nginx binds to (default `8080`) |
@@ -175,7 +236,7 @@ To point Compose at a specific socket, set `DOCKER_HOST` (for example `unix:///r
 ```bash
 ./apigene setup              # First-time: create .env, pull images, start
 ./apigene start              # Start all services
-./apigene start --pull       # Pull latest images, then start
+./apigene start --pull       # Pull images, then start (skips local name:tag images)
 ./apigene test               # Run health checks on the full stack
 ./apigene logs               # Tail colored logs
 ./apigene logs backend       # Tail a specific service
@@ -234,13 +295,15 @@ Health endpoints (replace `<APIGENE_PORT>` with your port, default `8080`):
 
 ## Upgrading
 
-By default, `APIGENE_IMAGE_TAG=latest` in `.env.example` — `./apigene start --pull` fetches the current public ECR release.
+`APIGENE_IMAGE_TAG=latest` tracks the current public ECR release. Pull and restart with:
 
 ```bash
 ./apigene start --pull
 ```
 
-For production, pin a specific release in `.env` (e.g. `APIGENE_IMAGE_TAG=5.4.0`). To override one service, uncomment its per-image tag in `.env.example`.
+Pin a release with `APIGENE_IMAGE_TAG` (for example `5.5.0`). Set `APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, or `APIGENE_NGINX_IMAGE_TAG` when one service should differ. See [Container images](#container-images) for a backend `6.0.0` / other services `5.5.0` example, a private registry, and images already on the machine.
+
+An existing `.env` without `APIGENE_IMAGE_REGISTRY` keeps pulling `public.ecr.aws/apigene/`. The next `./apigene setup` adds the key from `.env.example`.
 
 ## Troubleshooting
 
@@ -253,7 +316,7 @@ For production, pin a specific release in `.env` (e.g. `APIGENE_IMAGE_TAG=5.4.0`
 | MCP tools fail with ECONNREFUSED | Restart mcp-gw — `APIGENE_URL` is set automatically to `http://nginx` |
 | Port already in use | Change `APIGENE_PORT` in `.env` and restart |
 | Compass shows wrong database | Another MongoDB may be using port 27017 — set `MONGO_HOST_PORT=27018` |
-| Slow on Apple Silicon | Expected — images run via amd64 emulation |
+| Slow on Apple Silicon | Published images are `linux/amd64` and run under emulation. Locally built arm64 images need `APIGENE_IMAGE_PLATFORM=linux/arm64` |
 | Directory already has other files | `cd` into an empty directory and run the installer again |
 
 Run `./apigene test` for a full diagnostic report.

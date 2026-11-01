@@ -11,7 +11,8 @@ cmd_start() {
         echo "Usage: apigene start [--pull]"
         echo ""
         echo "  apigene start        Start all services"
-        echo "  apigene start --pull Pull latest images, then start"
+        echo "  apigene start --pull Pull images, then start"
+        echo "                       Local name:tag images are left on the machine"
         return 0
         ;;
       *)
@@ -27,16 +28,14 @@ cmd_start() {
 
   apigene_banner "Apigene Start"
   apigene_info "Base URL:   ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
-  apigene_info "Image tag:  ${APIGENE_IMAGE_TAG}"
+  apigene_print_images
   apigene_info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 
   apigene_runtime_init || return 1
 
   if [[ "$pull_images" == "true" ]]; then
     apigene_section "Pull images"
-    apigene_step "Pulling from public ECR..."
-    apigene_compose pull
-    apigene_ok "Images up to date"
+    apigene_pull_images
   fi
 
   apigene_section "Start services"

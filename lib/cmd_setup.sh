@@ -34,10 +34,7 @@ cmd_setup() {
   apigene_info "Base URL:  ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
 
   apigene_section "Pull images"
-  apigene_runtime_init || return 1
-  apigene_step "Pulling from public ECR..."
-  apigene_compose pull
-  apigene_ok "Images ready"
+  apigene_pull_images || return 1
 
   apigene_section "Start services"
   cmd_start
