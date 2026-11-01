@@ -7,6 +7,8 @@ cd "$APIGENE_ROOT"
 # shellcheck disable=SC1091
 source "$APIGENE_ROOT/lib/ui.sh"
 # shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/runtime.sh"
+# shellcheck disable=SC1091
 source "$APIGENE_ROOT/lib/cmd_setup.sh"
 # shellcheck disable=SC1091
 source "$APIGENE_ROOT/lib/cmd_start.sh"

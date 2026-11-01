@@ -9,6 +9,8 @@ cd "$ROOT"
 # shellcheck disable=SC1091
 source "$ROOT/lib/ui.sh"
 # shellcheck disable=SC1091
+source "$ROOT/lib/runtime.sh"
+# shellcheck disable=SC1091
 source "$ROOT/lib/defaults.sh"
 
 PASS=0
@@ -126,10 +128,10 @@ info "Org:      ${ORG_NAME}"
 info "Email:    ${EMAIL}"
 
 section "Compose validation"
-if docker compose config -q >/dev/null 2>&1; then
-  pass "docker compose config is valid"
+if apigene_runtime_init && apigene_compose config -q >/dev/null 2>&1; then
+  pass "compose config is valid (${APIGENE_RUNTIME})"
 else
-  fail "docker compose config failed"
+  fail "compose config failed"
 fi
 
 section "Public endpoints"
@@ -820,8 +822,8 @@ if [[ -n "$TOKEN" ]]; then
   expect_status "user/me still valid after prior calls" "200" || true
 
   # Confirm Mongo still answers after API traffic
-  mongo_id="$(docker compose ps -q mongo 2>/dev/null || true)"
-  if [[ -n "$mongo_id" ]] && docker exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
+  mongo_id="$(apigene_service_id mongo 2>/dev/null || true)"
+  if [[ -n "$mongo_id" ]] && apigene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
     pass "mongo still healthy after API traffic"
   else
     fail "mongo ping failed after API traffic"

@@ -4,8 +4,9 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with Dock
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
-- Docker **must be running** before you install or start the stack
+- A container engine that is running before you install or start the stack:
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine + Compose v2
+  - Linux with Podman 4.7 or newer and Docker Compose v2 ([Linux with Podman](#linux-with-podman))
 - First boot downloads container images and can take several minutes
 - **Windows:** use [WSL2](https://learn.microsoft.com/windows/wsl/install) with Docker Desktop’s WSL backend; run the installer inside Ubuntu/WSL, not PowerShell or CMD
 
@@ -144,6 +145,31 @@ NEXT_PUBLIC_AUTH_PROVIDER=clerk
 
 See the [Apigene docs](https://docs.apigene.ai/) for Clerk configuration when using that provider.
 
+## Linux with Podman
+
+Podman runs this same Compose file through Docker Compose v2. `podman compose` (Podman 4.7+) selects the `docker-compose` provider and points it at the Podman API. Install that provider as `docker-compose` on `PATH`.
+
+Start the API socket before `./apigene setup`.
+
+Rootless (socket `$XDG_RUNTIME_DIR/podman/podman.sock`):
+
+```bash
+loginctl enable-linger "$USER"
+systemctl --user enable --now podman.socket podman-restart.service
+```
+
+Rootful (socket `/run/podman/podman.sock`):
+
+```bash
+systemctl enable --now podman.socket podman-restart.service
+```
+
+`restart: unless-stopped` brings containers back after a reboot when `podman-restart.service` is enabled. Rootless mode also needs `loginctl enable-linger`.
+
+Published images are `linux/amd64`. On an arm64 host, install qemu user-mode emulation (`qemu-user-static`, or the distro binfmt package) so Podman can run them.
+
+To point Compose at a specific socket, set `DOCKER_HOST` (for example `unix:///run/podman/podman.sock`).
+
 ## CLI reference
 
 ```bash
@@ -153,7 +179,7 @@ See the [Apigene docs](https://docs.apigene.ai/) for Clerk configuration when us
 ./apigene test               # Run health checks on the full stack
 ./apigene logs               # Tail colored logs
 ./apigene logs backend       # Tail a specific service
-./apigene logs --raw         # Plain docker compose output
+./apigene logs --raw         # Plain compose output
 ./apigene stop               # Stop (keeps Mongo data)
 ./apigene stop --volumes     # Stop and delete Mongo data
 ```

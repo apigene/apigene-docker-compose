@@ -48,7 +48,7 @@ banner() {
 
 usage() {
   cat <<EOF
-Apigene installer — run the full platform locally with Docker.
+Apigene installer — run the full platform locally with Docker or Podman.
 
 One-line install:
   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
@@ -76,14 +76,64 @@ require_command() {
   return 1
 }
 
-check_docker_running() {
-  if docker info >/dev/null 2>&1; then
-    ok "Docker daemon is running"
+# Same engine order as lib/runtime.sh: a running Docker daemon wins. Podman is
+# the fallback, including when the docker CLI is Podman's shim.
+server_is_podman() {
+  local platform name
+  platform="$(docker version --format '{{.Server.Platform.Name}}' 2>/dev/null || true)"
+  name="$(docker info --format '{{.Name}}' 2>/dev/null || true)"
+  [[ "$platform" == *[Pp]odman* || "$name" == *[Pp]odman* ]]
+}
+
+docker_engine_ready() {
+  command -v docker >/dev/null 2>&1 || return 1
+  docker info >/dev/null 2>&1 || return 1
+  ! server_is_podman
+}
+
+check_podman_socket() {
+  local path exists
+  path="$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null || true)"
+  exists="$(podman info --format '{{.Host.RemoteSocket.Exists}}' 2>/dev/null || true)"
+  if [[ "$exists" == "true" || ( -n "$path" && -S "$path" ) ]]; then
+    ok "Podman API socket is listening (${path})"
     return 0
   fi
-  err "Docker is installed but not running"
-  info "Start Docker Desktop or your Docker daemon, then re-run the installer."
+  err "Podman API socket is not listening${path:+ (${path})}"
+  if [[ -z "$path" || "$path" == /run/user/* ]]; then
+    info "Start it with: systemctl --user enable --now podman.socket"
+  else
+    info "Start it with: systemctl enable --now podman.socket"
+  fi
   return 1
+}
+
+check_engine() {
+  if docker_engine_ready; then
+    ok "Docker daemon is running"
+    docker compose version >/dev/null 2>&1 \
+      && ok "docker compose available ($(docker compose version --short 2>/dev/null || docker compose version | head -1))" \
+      || { err "docker compose not available"; info "Install Docker Compose v2 with Docker Desktop."; exit 1; }
+    return 0
+  fi
+
+  if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+    ok "Podman is running ($(podman --version | head -1))"
+    if podman compose version >/dev/null 2>&1; then
+      ok "podman compose available ($(podman compose version --short 2>/dev/null || podman compose version | head -1))"
+    else
+      err "podman compose is not available"
+      info "Install Docker Compose v2. podman compose runs the docker-compose provider."
+      exit 1
+    fi
+    check_podman_socket || exit 1
+    return 0
+  fi
+
+  err "No container engine is running"
+  info "Install Docker Desktop: https://www.docker.com/products/docker-desktop/"
+  info "Or install Podman 4.7+ and start podman.socket, then re-run the installer."
+  exit 1
 }
 
 install_repo() {
@@ -181,12 +231,8 @@ main() {
 
   section "Prerequisites"
   require_command git "Install Git: https://git-scm.com/downloads" || exit 1
-  require_command docker "Install Docker Desktop: https://www.docker.com/products/docker-desktop/" || exit 1
   require_command curl "Install curl from your system package manager." || exit 1
-  docker compose version >/dev/null 2>&1 \
-    && ok "docker compose available ($(docker compose version --short 2>/dev/null || docker compose version | head -1))" \
-    || { err "docker compose not available"; info "Install Docker Compose v2 with Docker Desktop."; exit 1; }
-  check_docker_running || exit 1
+  check_engine
 
   install_repo
   maybe_install_cli_symlink

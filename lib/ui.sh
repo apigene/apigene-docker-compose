@@ -86,6 +86,16 @@ apigene_load_env() {
   APIGENE_COPILOT_IMAGE_TAG="${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
   APIGENE_MCP_GW_IMAGE_TAG="${APIGENE_MCP_GW_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
   APIGENE_NGINX_IMAGE_TAG="${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
+  # Compose interpolation is single-level so podman-compose 1.0.3 can parse it.
+  # Export the resolved tags and the port-derived public URL for that step.
+  export APIGENE_IMAGE_TAG APIGENE_BACKEND_IMAGE_TAG APIGENE_COPILOT_IMAGE_TAG \
+    APIGENE_MCP_GW_IMAGE_TAG APIGENE_NGINX_IMAGE_TAG
+  if [[ -z "${NEXT_PUBLIC_SERVER_BASE_URL:-}" ]]; then
+    export NEXT_PUBLIC_SERVER_BASE_URL="${APIGENE_BASE_URL}"
+  fi
+  if [[ -z "${ALLOWED_ORIGINS:-}" ]]; then
+    export ALLOWED_ORIGINS="${NEXT_PUBLIC_SERVER_BASE_URL}"
+  fi
 }
 
 apigene_require_env() {

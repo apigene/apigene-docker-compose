@@ -97,6 +97,19 @@ jobs:
 
           echo "Using image tags:"
           grep -E '^APIGENE_(IMAGE|BACKEND|COPILOT|MCP_GW|NGINX)_IMAGE_TAG=' .env || true
+          # Compose substitutions are single-level. Copy the global tag onto any
+          # per-service tag the caller left unset.
+          global_tag="$(grep -E '^APIGENE_IMAGE_TAG=' .env | head -1 | cut -d= -f2-)"
+          for key in APIGENE_BACKEND_IMAGE_TAG APIGENE_COPILOT_IMAGE_TAG APIGENE_MCP_GW_IMAGE_TAG APIGENE_NGINX_IMAGE_TAG; do
+            if grep -qE "^${key}=.+" .env; then
+              continue
+            fi
+            if grep -qE "^${key}=" .env; then
+              sed -i "s/^${key}=.*/${key}=${global_tag}/" .env
+            else
+              echo "${key}=${global_tag}" >> .env
+            fi
+          done
 
       - name: Check AWS secrets
         id: aws-secrets
@@ -209,11 +222,391 @@ jobs:
         if: always()
         run: docker compose down -v --remove-orphans
 
+  integration-podman:
+    name: Smoke + API integration (Podman)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DOCKER_HOST: unix:///run/podman/podman.sock
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Create .env
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          SECRET="$(openssl rand -hex 32)"
+          sed -i "s/^AUTH_APIGENE_SECRET_KEY=.*/AUTH_APIGENE_SECRET_KEY=${SECRET}/" .env
+
+          if grep -qE '^APIGENE_PORT=' .env; then
+            sed -i "s/^APIGENE_PORT=.*/APIGENE_PORT=${APIGENE_PORT}/" .env
+          else
+            echo "APIGENE_PORT=${APIGENE_PORT}" >> .env
+          fi
+          if grep -qE '^MONGO_HOST_PORT=' .env; then
+            sed -i "s/^MONGO_HOST_PORT=.*/MONGO_HOST_PORT=${MONGO_HOST_PORT}/" .env
+          else
+            echo "MONGO_HOST_PORT=${MONGO_HOST_PORT}" >> .env
+          fi
+          if grep -qE '^NEXT_PUBLIC_SERVER_BASE_URL=' .env; then
+            sed -i "s|^NEXT_PUBLIC_SERVER_BASE_URL=.*|NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:${APIGENE_PORT}|" .env
+          else
+            echo "NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:${APIGENE_PORT}" >> .env
+          fi
+
+          set_tag() {
+            local key="$1" value="$2"
+            [[ -n "$value" ]] || return 0
+            if grep -qE "^${key}=" .env; then
+              sed -i "s/^${key}=.*/${key}=${value}/" .env
+            else
+              echo "${key}=${value}" >> .env
+            fi
+          }
+
+          set_tag APIGENE_IMAGE_TAG "${{ inputs.image_tag || 'latest' }}"
+          set_tag APIGENE_BACKEND_IMAGE_TAG "${{ inputs.backend_tag }}"
+          set_tag APIGENE_COPILOT_IMAGE_TAG "${{ inputs.copilot_tag }}"
+          set_tag APIGENE_MCP_GW_IMAGE_TAG "${{ inputs.mcp_gw_tag }}"
+          set_tag APIGENE_NGINX_IMAGE_TAG "${{ inputs.nginx_tag }}"
+
+          echo "Using image tags:"
+          grep -E '^APIGENE_(IMAGE|BACKEND|COPILOT|MCP_GW|NGINX)_IMAGE_TAG=' .env || true
+          # Compose substitutions are single-level. Copy the global tag onto any
+          # per-service tag the caller left unset.
+          global_tag="$(grep -E '^APIGENE_IMAGE_TAG=' .env | head -1 | cut -d= -f2-)"
+          for key in APIGENE_BACKEND_IMAGE_TAG APIGENE_COPILOT_IMAGE_TAG APIGENE_MCP_GW_IMAGE_TAG APIGENE_NGINX_IMAGE_TAG; do
+            if grep -qE "^${key}=.+" .env; then
+              continue
+            fi
+            if grep -qE "^${key}=" .env; then
+              sed -i "s/^${key}=.*/${key}=${global_tag}/" .env
+            else
+              echo "${key}=${global_tag}" >> .env
+            fi
+          done
+
+      - name: Install Podman and Compose v2
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y podman
+          # The runner already ships the Compose v2 plugin. Install the Ubuntu
+          # package only when that plugin is missing.
+          if ! docker compose version >/dev/null 2>&1; then
+            sudo apt-get install -y docker-compose-v2
+          fi
+          sudo mkdir -p /etc/containers/registries.conf.d
+          printf 'unqualified-search-registries = ["docker.io"]\n' | sudo tee /etc/containers/registries.conf.d/99-docker-io.conf >/dev/null
+          sudo systemctl enable --now podman.socket
+          sudo chmod 666 /run/podman/podman.sock
+          docker compose version
+          docker info
+
+      - name: Check AWS secrets
+        id: aws-secrets
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ECR_PUBLIC_PULL_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_PUBLIC_PULL_SECRET_ACCESS_KEY }}
+        run: |
+          if [[ -n "$AWS_ACCESS_KEY_ID" && -n "$AWS_SECRET_ACCESS_KEY" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "ECR Public pull credentials available."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ECR_PUBLIC_PULL_* secrets not configured."
+            echo "Org DEV_AWS_* secrets do not apply to this public repo."
+            echo "Add pull-only IAM credentials as repository secrets (see README or docs)."
+            echo "Continuing with anonymous pulls and retries."
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.aws-secrets.outputs.configured == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.ECR_PUBLIC_PULL_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ECR_PUBLIC_PULL_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.PUBLIC_ECR_LOGIN_REGION }}
+
+      - name: Login to public ECR
+        if: steps.aws-secrets.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          password="$(aws ecr-public get-login-password --region "${PUBLIC_ECR_LOGIN_REGION}")"
+          # Compose v2 reads the docker client config even when DOCKER_HOST is Podman.
+          printf '%s' "$password" | podman login --username AWS --password-stdin public.ecr.aws
+          printf '%s' "$password" | docker login --username AWS --password-stdin public.ecr.aws
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to Docker Hub (Podman)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${DOCKERHUB_USERNAME}" && -n "${DOCKERHUB_TOKEN}" ]]; then
+            printf '%s' "$DOCKERHUB_TOKEN" | podman login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
+          fi
+
+      - name: Pull images
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if docker compose pull; then
+              exit 0
+            fi
+            echo "Pull failed (attempt ${attempt}/5); retrying in $((attempt * 30))s..."
+            sleep $((attempt * 30))
+          done
+          exit 1
+
+      - name: Start stack
+        run: |
+          set -euo pipefail
+          chmod +x apigene tests/integration.sh
+          docker compose up -d
+
+          echo "Waiting for nginx healthy + Celery worker ready..."
+          for i in $(seq 1 90); do
+            nginx_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$(docker compose ps -q nginx)" 2>/dev/null || echo missing)"
+            celery_ready=0
+            worker_id="$(docker compose ps -q backend-worker 2>/dev/null || true)"
+            if [[ -n "$worker_id" ]] && docker logs "$worker_id" 2>&1 | grep -qE 'celery@.* ready'; then
+              celery_ready=1
+            fi
+
+            api_ok=0
+            if curl -fsS "http://localhost:${APIGENE_PORT}/nginx-health" >/dev/null 2>&1 \
+              && curl -fsS "http://localhost:${APIGENE_PORT}/api/health" 2>/dev/null | grep -q '"status"'; then
+              api_ok=1
+            fi
+
+            if [[ "$nginx_health" == "healthy" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
+              echo "Stack ready after attempt ${i} (nginx=${nginx_health}, celery=ready, api=ok)"
+              docker compose ps
+              exit 0
+            fi
+
+            echo "attempt ${i}/90 — nginx=${nginx_health} celery_ready=${celery_ready} api_ok=${api_ok}"
+            sleep 5
+          done
+
+          echo "::error::Stack did not become healthy within timeout"
+          docker compose ps -a
+          docker compose logs --tail=200 backend backend-worker nginx
+          exit 1
+
+      - name: Smoke checks (./apigene test)
+        run: ./apigene test
+
+      - name: API integration tests
+        run: ./tests/integration.sh
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          set +e
+          echo "::group::compose ps"
+          docker compose ps -a
+          echo "::endgroup::"
+          echo "::group::backend logs"
+          docker compose logs --tail=300 backend backend-worker
+          echo "::endgroup::"
+          echo "::group::nginx / mcp-gw / copilot logs"
+          docker compose logs --tail=200 nginx mcp-gw copilot
+          echo "::endgroup::"
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  integration-podman-compose:
+    name: Smoke + API integration (podman-compose 1.0.3)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # Rootful Podman API. Do not set DOCKER_HOST: that selects Docker Compose v2.
+      CONTAINER_HOST: unix:///run/podman/podman.sock
+      PODMAN_COMPOSE_PROVIDER: /opt/podman-compose-venv/bin/podman-compose
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Create .env
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          SECRET="$(openssl rand -hex 32)"
+          sed -i "s/^AUTH_APIGENE_SECRET_KEY=.*/AUTH_APIGENE_SECRET_KEY=${SECRET}/" .env
+
+          if grep -qE '^APIGENE_PORT=' .env; then
+            sed -i "s/^APIGENE_PORT=.*/APIGENE_PORT=${APIGENE_PORT}/" .env
+          else
+            echo "APIGENE_PORT=${APIGENE_PORT}" >> .env
+          fi
+          if grep -qE '^MONGO_HOST_PORT=' .env; then
+            sed -i "s/^MONGO_HOST_PORT=.*/MONGO_HOST_PORT=${MONGO_HOST_PORT}/" .env
+          else
+            echo "MONGO_HOST_PORT=${MONGO_HOST_PORT}" >> .env
+          fi
+          if grep -qE '^NEXT_PUBLIC_SERVER_BASE_URL=' .env; then
+            sed -i "s|^NEXT_PUBLIC_SERVER_BASE_URL=.*|NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:${APIGENE_PORT}|" .env
+          else
+            echo "NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:${APIGENE_PORT}" >> .env
+          fi
+
+          set_tag() {
+            local key="$1" value="$2"
+            [[ -n "$value" ]] || return 0
+            if grep -qE "^${key}=" .env; then
+              sed -i "s/^${key}=.*/${key}=${value}/" .env
+            else
+              echo "${key}=${value}" >> .env
+            fi
+          }
+
+          set_tag APIGENE_IMAGE_TAG "${{ inputs.image_tag || 'latest' }}"
+          set_tag APIGENE_BACKEND_IMAGE_TAG "${{ inputs.backend_tag }}"
+          set_tag APIGENE_COPILOT_IMAGE_TAG "${{ inputs.copilot_tag }}"
+          set_tag APIGENE_MCP_GW_IMAGE_TAG "${{ inputs.mcp_gw_tag }}"
+          set_tag APIGENE_NGINX_IMAGE_TAG "${{ inputs.nginx_tag }}"
+
+          global_tag="$(grep -E '^APIGENE_IMAGE_TAG=' .env | head -1 | cut -d= -f2-)"
+          for key in APIGENE_BACKEND_IMAGE_TAG APIGENE_COPILOT_IMAGE_TAG APIGENE_MCP_GW_IMAGE_TAG APIGENE_NGINX_IMAGE_TAG; do
+            if grep -qE "^${key}=.+" .env; then
+              continue
+            fi
+            if grep -qE "^${key}=" .env; then
+              sed -i "s/^${key}=.*/${key}=${global_tag}/" .env
+            else
+              echo "${key}=${global_tag}" >> .env
+            fi
+          done
+
+      - name: Install Podman 4.9 and podman-compose 1.0.3
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y podman python3-venv
+          # The runner's Docker daemon would make ./apigene select Docker.
+          sudo systemctl stop docker.socket docker.service || true
+          sudo python3 -m venv /opt/podman-compose-venv
+          sudo /opt/podman-compose-venv/bin/pip install --disable-pip-version-check 'podman-compose==1.0.3'
+          sudo mkdir -p /etc/containers/registries.conf.d
+          printf 'unqualified-search-registries = ["docker.io"]\n' | sudo tee /etc/containers/registries.conf.d/99-docker-io.conf >/dev/null
+          sudo systemctl enable --now podman.socket
+          sudo chmod 666 /run/podman/podman.sock
+          echo "podman $(podman --version)"
+          podman compose version
+          podman compose version | grep -q '1.0.3'
+          podman info --format 'socket={{.Host.RemoteSocket.Path}}'
+
+      - name: Check AWS secrets
+        id: aws-secrets
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ECR_PUBLIC_PULL_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_PUBLIC_PULL_SECRET_ACCESS_KEY }}
+        run: |
+          if [[ -n "$AWS_ACCESS_KEY_ID" && -n "$AWS_SECRET_ACCESS_KEY" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ECR_PUBLIC_PULL_* secrets not configured. Continuing with anonymous pulls."
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.aws-secrets.outputs.configured == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.ECR_PUBLIC_PULL_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ECR_PUBLIC_PULL_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.PUBLIC_ECR_LOGIN_REGION }}
+
+      - name: Login to public ECR
+        if: steps.aws-secrets.outputs.configured == 'true'
+        run: |
+          aws ecr-public get-login-password --region "${PUBLIC_ECR_LOGIN_REGION}" \
+            | podman login --username AWS --password-stdin public.ecr.aws
+
+      - name: Login to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [[ -n "${DOCKERHUB_USERNAME}" && -n "${DOCKERHUB_TOKEN}" ]]; then
+            printf '%s' "$DOCKERHUB_TOKEN" | podman login docker.io --username "$DOCKERHUB_USERNAME" --password-stdin
+          fi
+
+      - name: Pull images and start stack
+        run: |
+          set -euo pipefail
+          chmod +x apigene tests/integration.sh
+          ./apigene start --pull
+
+          echo "Waiting for nginx healthy + Celery worker ready..."
+          for i in $(seq 1 90); do
+            nginx_id="$(podman ps -aq --filter label=com.docker.compose.service=nginx | head -1)"
+            nginx_health="missing"
+            if [[ -n "$nginx_id" ]]; then
+              nginx_health="$(podman inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$nginx_id" 2>/dev/null || echo missing)"
+            fi
+            celery_ready=0
+            worker_id="$(podman ps -aq --filter label=com.docker.compose.service=backend-worker | head -1)"
+            if [[ -n "$worker_id" ]] && podman logs "$worker_id" 2>&1 | grep -qE 'celery@.* ready'; then
+              celery_ready=1
+            fi
+            api_ok=0
+            if curl -fsS "http://localhost:${APIGENE_PORT}/nginx-health" >/dev/null 2>&1 \
+              && curl -fsS "http://localhost:${APIGENE_PORT}/api/health" 2>/dev/null | grep -q '"status"'; then
+              api_ok=1
+            fi
+            if [[ "$nginx_health" == "healthy" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
+              echo "Stack ready after attempt ${i}"
+              podman ps
+              exit 0
+            fi
+            echo "attempt ${i}/90 — nginx=${nginx_health} celery_ready=${celery_ready} api_ok=${api_ok}"
+            sleep 5
+          done
+          echo "::error::Stack did not become healthy within timeout"
+          podman ps -a
+          podman logs --tail 200 "$(podman ps -aq --filter label=com.docker.compose.service=backend | head -1)" || true
+          exit 1
+
+      - name: Smoke checks (./apigene test)
+        run: ./apigene test
+
+      - name: API integration tests
+        run: ./tests/integration.sh
+
+      - name: Dump diagnostics on failure
+        if: failure()
+        run: |
+          set +e
+          podman ps -a
+          for svc in backend backend-worker nginx mcp-gw copilot; do
+            echo "::group::${svc}"
+            id="$(podman ps -aq --filter label=com.docker.compose.service=${svc} | head -1)"
+            [[ -n "$id" ]] && podman logs --tail 200 "$id"
+            echo "::endgroup::"
+          done
+
+      - name: Tear down
+        if: always()
+        run: podman compose down -v
+
   # Slack status for smoke + API integration (success or failure).
   # Requires repository (or org) secret SLACK_WEBHOOK_DEPLOYMENT — same as apigene-backend CI.
   notify:
     name: Notify Slack
-    needs: [integration]
+    needs: [integration, integration-podman, integration-podman-compose]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -233,6 +626,8 @@ jobs:
         if: steps.slack_cfg.outputs.enabled == 'true'
         env:
           INTEGRATION_RESULT: ${{ needs.integration.result }}
+          PODMAN_RESULT: ${{ needs.integration-podman.result }}
+          PODMAN_COMPOSE_RESULT: ${{ needs.integration-podman-compose.result }}
           REF_NAME: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
           ACTOR: ${{ github.actor }}
@@ -244,24 +639,20 @@ jobs:
           if [ -z "$SUBJECT" ]; then
             SUBJECT="No commit message available."
           fi
-          case "$INTEGRATION_RESULT" in
-            success)
-              TITLE="docker-compose integration succeeded"
-              HEX="#2EB67D"
-              ;;
-            failure)
-              TITLE="docker-compose integration failed"
-              HEX="#E01E5A"
-              ;;
-            *)
-              TITLE="docker-compose integration finished"
-              HEX="#ECB22E"
-              ;;
-          esac
+          if [[ "$INTEGRATION_RESULT" == "success" && "$PODMAN_RESULT" == "success" && "$PODMAN_COMPOSE_RESULT" == "success" ]]; then
+            TITLE="docker-compose integration succeeded"
+            HEX="#2EB67D"
+          elif [[ "$INTEGRATION_RESULT" == "failure" || "$PODMAN_RESULT" == "failure" || "$PODMAN_COMPOSE_RESULT" == "failure" ]]; then
+            TITLE="docker-compose integration failed"
+            HEX="#E01E5A"
+          else
+            TITLE="docker-compose integration finished"
+            HEX="#ECB22E"
+          fi
           jq -n \
             --arg title "$TITLE" \
             --arg hex "$HEX" \
-            --arg result "$INTEGRATION_RESULT" \
+            --arg result "docker=${INTEGRATION_RESULT} podman=${PODMAN_RESULT} podman-compose=${PODMAN_COMPOSE_RESULT}" \
             --arg ref "$REF_NAME" \
             --arg sha "${SHA:0:7}" \
             --arg actor "$ACTOR" \

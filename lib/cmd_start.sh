@@ -30,16 +30,18 @@ cmd_start() {
   apigene_info "Image tag:  ${APIGENE_IMAGE_TAG}"
   apigene_info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 
+  apigene_runtime_init || return 1
+
   if [[ "$pull_images" == "true" ]]; then
     apigene_section "Pull images"
     apigene_step "Pulling from public ECR..."
-    docker compose pull
+    apigene_compose pull
     apigene_ok "Images up to date"
   fi
 
   apigene_section "Start services"
-  apigene_step "docker compose up -d"
-  docker compose up -d
+  apigene_step "${APIGENE_COMPOSE[*]} up -d"
+  apigene_compose up -d
   apigene_ok "Containers started"
 
   apigene_section "Endpoints"

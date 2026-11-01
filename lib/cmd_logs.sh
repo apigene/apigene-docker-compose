@@ -16,7 +16,7 @@ cmd_logs() {
         echo ""
         echo "  apigene logs                     Tail default services (formatted)"
         echo "  apigene logs backend nginx       Tail specific services"
-        echo "  apigene logs --raw               Plain docker compose output"
+        echo "  apigene logs --raw               Plain compose output"
         echo ""
         echo "Default services: backend copilot nginx mcp-gw backend-worker"
         echo ""
@@ -55,15 +55,17 @@ cmd_logs() {
   fi
   echo ""
 
+  apigene_runtime_init || return 1
+
   if [[ "$raw" == "true" ]]; then
-    exec docker compose logs -f --tail=100 "${services[@]}"
+    exec "${APIGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}"
   fi
 
   if command -v stdbuf >/dev/null 2>&1; then
-    exec stdbuf -oL docker compose logs -f --tail=100 "${services[@]}" \
+    exec stdbuf -oL "${APIGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}" \
       | awk -f "$APIGENE_ROOT/lib/format_logs.awk"
   fi
 
-  exec docker compose logs -f --tail=100 "${services[@]}" \
+  exec "${APIGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}" \
     | awk -f "$APIGENE_ROOT/lib/format_logs.awk"
 }

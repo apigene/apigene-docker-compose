@@ -34,8 +34,10 @@ x-apigene-local-env: &local-env
   UVICORN_WORKERS: "1"
   # Local default: http://localhost:$APIGENE_PORT. Set NEXT_PUBLIC_SERVER_BASE_URL for a
   # custom domain, LAN IP, or HTTPS URL; ALLOWED_ORIGINS follows unless overridden.
-  NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${APIGENE_PORT:-8080}}
-  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:${APIGENE_PORT:-8080}}}
+  # Single-level defaults: podman-compose 1.0.3 stops substitution at the first "}".
+  # ./apigene exports the port-derived URL before compose runs.
+  NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:8080}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
 
 services:
   mongo:
@@ -70,7 +72,7 @@ services:
       start_period: 5s
 
   backend:
-    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-${APIGENE_IMAGE_TAG:-latest}}
+    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-latest}
     platform: linux/amd64
     restart: unless-stopped
     <<: *env-file
@@ -94,7 +96,7 @@ services:
       start_period: 60s
 
   backend-worker:
-    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-${APIGENE_IMAGE_TAG:-latest}}
+    image: public.ecr.aws/apigene/apigene-backend:${APIGENE_BACKEND_IMAGE_TAG:-latest}
     platform: linux/amd64
     restart: unless-stopped
     <<: *env-file
@@ -119,16 +121,17 @@ services:
       start_period: 60s
 
   copilot:
-    image: public.ecr.aws/apigene/apigene-copilot:${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_IMAGE_TAG:-latest}}
+    image: public.ecr.aws/apigene/apigene-copilot:${APIGENE_COPILOT_IMAGE_TAG:-latest}
     platform: linux/amd64
     restart: unless-stopped
     <<: *env-file
-    network_mode: service:nginx
+    # Hostname localhost must reach published nginx. 127.0.0.1 stays the
+    # container itself, so Copilot's own healthcheck on :3000 still works.
+    extra_hosts:
+      - "localhost:host-gateway"
     environment:
       <<: *local-env
     depends_on:
-      nginx:
-        condition: service_started
       backend:
         condition: service_healthy
     healthcheck:
@@ -143,7 +146,7 @@ services:
       start_period: 60s
 
   mcp-gw:
-    image: public.ecr.aws/apigene/apigene-mcp-gw:${APIGENE_MCP_GW_IMAGE_TAG:-${APIGENE_IMAGE_TAG:-latest}}
+    image: public.ecr.aws/apigene/apigene-mcp-gw:${APIGENE_MCP_GW_IMAGE_TAG:-latest}
     platform: linux/amd64
     restart: unless-stopped
     <<: *env-file
@@ -165,14 +168,14 @@ services:
       start_period: 30s
 
   nginx:
-    image: public.ecr.aws/apigene/apigene-nginx:${APIGENE_NGINX_IMAGE_TAG:-${APIGENE_IMAGE_TAG:-latest}}
+    image: public.ecr.aws/apigene/apigene-nginx:${APIGENE_NGINX_IMAGE_TAG:-latest}
     platform: linux/amd64
     restart: unless-stopped
     environment:
       APIGENE_PORT: ${APIGENE_PORT:-8080}
     ports:
-      # Same port host↔container so Copilot (network_mode: service:nginx) can
-      # reach http://localhost:$APIGENE_PORT for server-side API calls.
+      # Same port host↔container so http://localhost:$APIGENE_PORT from Copilot
+      # (via extra_hosts localhost→host-gateway) hits this listener.
       - "${APIGENE_PORT:-8080}:${APIGENE_PORT:-8080}"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
@@ -186,6 +189,8 @@ services:
       backend:
         condition: service_healthy
       mcp-gw:
+        condition: service_started
+      copilot:
         condition: service_started
     healthcheck:
       test:

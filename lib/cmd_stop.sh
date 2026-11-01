@@ -27,11 +27,22 @@ cmd_stop() {
   apigene_banner "Apigene Stop"
   apigene_info "Time: $(date '+%Y-%m-%d %H:%M:%S')"
 
+  apigene_runtime_init || return 1
+
   apigene_section "Running containers"
-  if docker compose ps --status running -q 2>/dev/null | grep -q .; then
-    docker compose ps --status running --format 'table {{.Service}}\t{{.Status}}' 2>/dev/null \
+  if ! apigene_compose_is_podman_compose_v1 \
+    && apigene_compose ps --status running -q >/dev/null 2>&1 \
+    && apigene_compose ps --status running -q 2>/dev/null | grep -q .; then
+    apigene_compose ps --status running --format 'table {{.Service}}\t{{.Status}}' 2>/dev/null \
       | while IFS= read -r line; do
           [[ "$line" == SERVICE* ]] && continue
+          [[ -z "$line" ]] && continue
+          apigene_info "$line"
+        done
+  elif apigene_ctr ps --filter label=com.docker.compose.service --format '{{.Names}} {{.Status}}' 2>/dev/null \
+      | grep -q .; then
+    apigene_ctr ps --filter label=com.docker.compose.service --format '{{.Names}} {{.Status}}' 2>/dev/null \
+      | while IFS= read -r line; do
           [[ -z "$line" ]] && continue
           apigene_info "$line"
         done
@@ -42,13 +53,13 @@ cmd_stop() {
   apigene_section "Shutdown"
 
   if [[ "$remove_volumes" == "true" ]]; then
-    apigene_step "docker compose down -v"
-    docker compose down -v
+    apigene_step "${APIGENE_COMPOSE[*]} down -v"
+    apigene_compose down -v
     echo ""
     echo -e "${C_YELLOW}${C_BOLD}! Apigene stopped. Mongo data volume removed.${C_RESET}"
   else
-    apigene_step "docker compose down"
-    docker compose down
+    apigene_step "${APIGENE_COMPOSE[*]} down"
+    apigene_compose down
     echo ""
     echo -e "${C_GREEN}${C_BOLD}✔ Apigene stopped. Data volumes preserved.${C_RESET}"
     apigene_info "Delete Mongo data too: ${C_BOLD}./apigene stop --volumes${C_RESET}"
