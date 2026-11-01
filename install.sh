@@ -4,16 +4,15 @@
 #   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 #
 # Options (environment variables):
-#   APIGENE_INSTALL_DIR   Install location (default: ~/apigene)
-#   APIGENE_BRANCH        Git branch to install (default: main)
-#   APIGENE_SKIP_SETUP    Set to 1 to clone/update only, skip ./apigene setup
+#   APIGENE_INSTALL_DIR   Install location (default: the current directory)
+#   APIGENE_BRANCH        Branch whose archive is downloaded (default: main)
+#   APIGENE_SKIP_SETUP    Set to 1 to download only, skip ./apigene setup
 
 set -euo pipefail
 
-APIGENE_REPO="${APIGENE_REPO:-https://github.com/apigene/apigene-docker-compose.git}"
 APIGENE_BRANCH="${APIGENE_BRANCH:-main}"
-APIGENE_INSTALL_DIR="${APIGENE_INSTALL_DIR:-${HOME}/apigene}"
 APIGENE_SKIP_SETUP="${APIGENE_SKIP_SETUP:-0}"
+APIGENE_INSTALL_DIR="${APIGENE_INSTALL_DIR:-${PWD}}"
 
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
   C_RESET='\033[0m'
@@ -54,13 +53,11 @@ One-line install:
   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 
 Environment variables:
-  APIGENE_INSTALL_DIR   Install directory (default: ~/apigene)
-  APIGENE_BRANCH        Git branch (default: main)
+  APIGENE_INSTALL_DIR   Install directory (default: the current directory)
+  APIGENE_BRANCH        Branch archive to download (default: main)
   APIGENE_SKIP_SETUP    Set to 1 to skip ./apigene setup
 
-After install:
-  cd ~/apigene && ./apigene start
-  cd ~/apigene && ./apigene test
+After install, the commands printed at the end run the stack from the directory that was used.
 EOF
 }
 
@@ -136,24 +133,67 @@ check_engine() {
   exit 1
 }
 
-install_repo() {
-  section "Install files"
+# A previous installer run, not an unrelated directory that happens to share the name.
+install_present() {
+  local dir="$1"
+  [[ -f "${dir}/apigene" && -f "${dir}/docker-compose.yml" ]]
+}
 
-  if [[ -d "${APIGENE_INSTALL_DIR}/.git" ]]; then
-    step "Updating existing install at ${APIGENE_INSTALL_DIR}"
-    git -C "${APIGENE_INSTALL_DIR}" fetch origin "${APIGENE_BRANCH}"
-    git -C "${APIGENE_INSTALL_DIR}" checkout "${APIGENE_BRANCH}"
-    git -C "${APIGENE_INSTALL_DIR}" pull --ff-only origin "${APIGENE_BRANCH}" || true
-    ok "Repository updated"
-  elif [[ -d "${APIGENE_INSTALL_DIR}" ]]; then
-    err "Install directory exists but is not a git repo: ${APIGENE_INSTALL_DIR}"
-    info "Remove it or set APIGENE_INSTALL_DIR to a different path."
-    exit 1
-  else
-    step "Cloning into ${APIGENE_INSTALL_DIR}"
-    git clone --branch "${APIGENE_BRANCH}" --depth 1 "${APIGENE_REPO}" "${APIGENE_INSTALL_DIR}"
-    ok "Repository cloned"
+# Empty, or only a kept .env from an interrupted run. Other files stay untouched.
+install_dir_is_available() {
+  local dir="$1" found
+  [[ ! -e "${dir}" ]] && return 0
+  found="$(find "${dir}" -mindepth 1 -maxdepth 1 ! -name '.env' -print -quit)"
+  [[ -z "${found}" ]]
+}
+
+choose_install_dir() {
+  if install_present "${APIGENE_INSTALL_DIR}" || install_dir_is_available "${APIGENE_INSTALL_DIR}"; then
+    return 0
   fi
+
+  err "Current directory already has other files: ${APIGENE_INSTALL_DIR}"
+  info "cd into an empty directory and run the installer again."
+  exit 1
+}
+
+install_files() {
+  local archive_url stage extracted saved_env
+  section "Install files"
+  choose_install_dir
+
+  archive_url="https://github.com/apigene/apigene-docker-compose/archive/refs/heads/${APIGENE_BRANCH}.tar.gz"
+  stage="$(mktemp -d)"
+  step "Downloading ${APIGENE_BRANCH} into ${APIGENE_INSTALL_DIR}"
+  if ! curl -fsSL "${archive_url}" | tar -xz -C "${stage}"; then
+    rm -rf "${stage}"
+    err "Could not download ${archive_url}"
+    exit 1
+  fi
+
+  extracted="$(find "${stage}" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+  if [[ -z "${extracted}" || ! -f "${extracted}/apigene" ]]; then
+    rm -rf "${stage}"
+    err "Downloaded archive did not contain the Apigene CLI"
+    exit 1
+  fi
+
+  mkdir -p "${APIGENE_INSTALL_DIR}"
+  saved_env=""
+  if [[ -f "${APIGENE_INSTALL_DIR}/.env" ]]; then
+    saved_env="${stage}/env.keep"
+    cp "${APIGENE_INSTALL_DIR}/.env" "${saved_env}"
+  fi
+  # Only an existing install is replaced. An empty directory has nothing to remove.
+  if install_present "${APIGENE_INSTALL_DIR}"; then
+    find "${APIGENE_INSTALL_DIR}" -mindepth 1 -maxdepth 1 \
+      ! -name '.env' ! -name '.git' -exec rm -rf {} +
+  fi
+  cp -R "${extracted}/." "${APIGENE_INSTALL_DIR}/"
+  if [[ -n "${saved_env}" ]]; then
+    cp "${saved_env}" "${APIGENE_INSTALL_DIR}/.env"
+  fi
+  rm -rf "${stage}"
 
   chmod +x "${APIGENE_INSTALL_DIR}/apigene"
   ok "CLI ready: ${APIGENE_INSTALL_DIR}/apigene"
@@ -230,11 +270,11 @@ main() {
   banner
 
   section "Prerequisites"
-  require_command git "Install Git: https://git-scm.com/downloads" || exit 1
   require_command curl "Install curl from your system package manager." || exit 1
+  require_command tar "Install tar from your system package manager." || exit 1
   check_engine
 
-  install_repo
+  install_files
   maybe_install_cli_symlink
 
   if [[ "${APIGENE_SKIP_SETUP}" != "1" ]]; then

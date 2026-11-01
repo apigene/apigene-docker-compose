@@ -18,7 +18,7 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with Dock
 curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 ```
 
-This clones the repo to **`~/apigene`**, creates `.env`, generates an auth secret, pulls images, and starts the stack.
+This downloads the stack into the current directory (no Git required), creates `.env`, generates an auth secret, pulls images, and starts the stack. The directory must be empty, or already be an Apigene install. Re-running the installer there updates the files and keeps `.env`.
 
 When it finishes, open **http://localhost:8080** (or your `APIGENE_PORT`).
 
@@ -26,8 +26,8 @@ Optional environment variables for the installer:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APIGENE_INSTALL_DIR` | `~/apigene` | Where to clone the repo |
-| `APIGENE_BRANCH` | `main` | Git branch to install |
+| `APIGENE_INSTALL_DIR` | current directory | Where to unpack the stack. The directory must be empty or already an Apigene install |
+| `APIGENE_BRANCH` | `main` | Branch archive to download |
 | `APIGENE_LINK_CLI` | `0` | Set to `1` to symlink `apigene` into `~/.local/bin` |
 
 ### Manual install
@@ -254,7 +254,7 @@ For production, pin a specific release in `.env` (e.g. `APIGENE_IMAGE_TAG=5.4.0`
 | Port already in use | Change `APIGENE_PORT` in `.env` and restart |
 | Compass shows wrong database | Another MongoDB may be using port 27017 — set `MONGO_HOST_PORT=27018` |
 | Slow on Apple Silicon | Expected — images run via amd64 emulation |
-| Install dir already exists | Remove `~/apigene` or set `APIGENE_INSTALL_DIR` to another path |
+| Directory already has other files | `cd` into an empty directory and run the installer again |
 
 Run `./apigene test` for a full diagnostic report.
 
