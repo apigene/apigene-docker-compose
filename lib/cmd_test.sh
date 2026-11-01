@@ -186,12 +186,15 @@ cmd_test() {
   for service in mongo redis backend backend-worker mcp-gw nginx copilot; do check_container_healthy "$service"; done
 
   section "Data stores"
-  local redis_id mongo_id
+  local redis_id mongo_id mongo_vol
   redis_id="$(container_id redis)"
   mongo_id="$(container_id mongo)"
   [[ -n "$redis_id" ]] && apigene_ctr exec "$redis_id" redis-cli ping 2>/dev/null | grep -q PONG && pass "redis — responds to PING" || fail "redis — PING failed"
   [[ -n "$mongo_id" ]] && apigene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1 && pass "mongo — responds to ping" || fail "mongo — ping failed"
-  apigene_ctr volume ls --format '{{.Name}}' 2>/dev/null | grep -q 'apigene_mongo_data' && pass "mongo data volume exists (apigene_mongo_data)" || warn "mongo data volume apigene_mongo_data not found"
+  # Docker Compose names this apigene_mongo_data. podman-compose 1.0.3
+  # ignores the project name and prefixes the checkout directory instead.
+  mongo_vol="$(apigene_ctr volume ls --format '{{.Name}}' 2>/dev/null | grep -E '(^|_)mongo_data$' | head -1 || true)"
+  [[ -n "$mongo_vol" ]] && pass "mongo data volume exists (${mongo_vol})" || warn "mongo data volume not found"
 
   section "Service connectivity"
   local nginx_id worker_id

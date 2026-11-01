@@ -46,7 +46,7 @@ env:
 
 jobs:
   integration:
-    name: Smoke + API integration
+    name: Smoke + API integration (Docker Compose v2)
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -223,7 +223,7 @@ jobs:
         run: docker compose down -v --remove-orphans
 
   integration-podman:
-    name: Smoke + API integration (Podman)
+    name: Smoke + API integration (Podman 4.9 + Compose v2)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -376,9 +376,20 @@ jobs:
           chmod +x apigene tests/integration.sh
           docker compose up -d
 
-          echo "Waiting for nginx healthy + Celery worker ready..."
+          # ./apigene test fails while any health status is still "starting".
+          # Mongo's probe interval is 30s, so nginx can be healthy first.
+          echo "Waiting for every healthcheck and the Celery worker..."
+          services=(mongo redis backend backend-worker mcp-gw nginx copilot)
           for i in $(seq 1 90); do
-            nginx_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$(docker compose ps -q nginx)" 2>/dev/null || echo missing)"
+            pending=""
+            for svc in "${services[@]}"; do
+              id="$(docker compose ps -q "$svc" 2>/dev/null || true)"
+              health="missing"
+              if [[ -n "$id" ]]; then
+                health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id" 2>/dev/null || echo missing)"
+              fi
+              [[ "$health" == "healthy" ]] || pending="${pending} ${svc}=${health}"
+            done
             celery_ready=0
             worker_id="$(docker compose ps -q backend-worker 2>/dev/null || true)"
             if [[ -n "$worker_id" ]] && docker logs "$worker_id" 2>&1 | grep -qE 'celery@.* ready'; then
@@ -391,13 +402,13 @@ jobs:
               api_ok=1
             fi
 
-            if [[ "$nginx_health" == "healthy" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
-              echo "Stack ready after attempt ${i} (nginx=${nginx_health}, celery=ready, api=ok)"
+            if [[ -z "$pending" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
+              echo "Stack ready after attempt ${i}"
               docker compose ps
               exit 0
             fi
 
-            echo "attempt ${i}/90 — nginx=${nginx_health} celery_ready=${celery_ready} api_ok=${api_ok}"
+            echo "attempt ${i}/90 —${pending:- all healthy} celery_ready=${celery_ready} api_ok=${api_ok}"
             sleep 5
           done
 
@@ -431,7 +442,7 @@ jobs:
         run: docker compose down -v --remove-orphans
 
   integration-podman-compose:
-    name: Smoke + API integration (podman-compose 1.0.3)
+    name: Smoke + API integration (Podman 4.9 + podman-compose 1.0.3)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -558,13 +569,20 @@ jobs:
           chmod +x apigene tests/integration.sh
           ./apigene start --pull
 
-          echo "Waiting for nginx healthy + Celery worker ready..."
+          # ./apigene test fails while any health status is still "starting".
+          # Mongo's probe interval is 30s, so nginx can be healthy first.
+          echo "Waiting for every healthcheck and the Celery worker..."
+          services=(mongo redis backend backend-worker mcp-gw nginx copilot)
           for i in $(seq 1 90); do
-            nginx_id="$(podman ps -aq --filter label=com.docker.compose.service=nginx | head -1)"
-            nginx_health="missing"
-            if [[ -n "$nginx_id" ]]; then
-              nginx_health="$(podman inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$nginx_id" 2>/dev/null || echo missing)"
-            fi
+            pending=""
+            for svc in "${services[@]}"; do
+              id="$(podman ps -aq --filter "label=com.docker.compose.service=${svc}" | head -1)"
+              health="missing"
+              if [[ -n "$id" ]]; then
+                health="$(podman inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id" 2>/dev/null || echo missing)"
+              fi
+              [[ "$health" == "healthy" ]] || pending="${pending} ${svc}=${health}"
+            done
             celery_ready=0
             worker_id="$(podman ps -aq --filter label=com.docker.compose.service=backend-worker | head -1)"
             if [[ -n "$worker_id" ]] && podman logs "$worker_id" 2>&1 | grep -qE 'celery@.* ready'; then
@@ -575,12 +593,12 @@ jobs:
               && curl -fsS "http://localhost:${APIGENE_PORT}/api/health" 2>/dev/null | grep -q '"status"'; then
               api_ok=1
             fi
-            if [[ "$nginx_health" == "healthy" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
+            if [[ -z "$pending" && "$celery_ready" -eq 1 && "$api_ok" -eq 1 ]]; then
               echo "Stack ready after attempt ${i}"
               podman ps
               exit 0
             fi
-            echo "attempt ${i}/90 — nginx=${nginx_health} celery_ready=${celery_ready} api_ok=${api_ok}"
+            echo "attempt ${i}/90 —${pending:- all healthy} celery_ready=${celery_ready} api_ok=${api_ok}"
             sleep 5
           done
           echo "::error::Stack did not become healthy within timeout"
