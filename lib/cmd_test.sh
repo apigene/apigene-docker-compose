@@ -236,20 +236,21 @@ cmd_test() {
     'wget -q -O - http://127.0.0.1:8001/version 2>/dev/null | grep -q "\"service\""' \
     && pass "mcp-gw — /version on :8001" || fail "mcp-gw — /version on :8001 failed"
 
-  # Catch APIGENE_PORT mismatch: Copilot server-side calls use NEXT_PUBLIC_SERVER_BASE_URL
-  # (e.g. http://localhost:8888), which must be reachable inside the nginx/copilot network.
+  # Copilot server-side calls use APIGENE_INTERNAL_BASE_URL when set
+  # (http://localhost:$APIGENE_PORT via host-gateway), otherwise the public URL.
   if [[ -n "$copilot_id" && -n "${public_url:-}" ]]; then
     if apigene_ctr exec "$copilot_id" node -e "
-      const u = process.env.NEXT_PUBLIC_SERVER_BASE_URL.replace(/\\/\$/, '') + '/api/health';
+      const base = (process.env.APIGENE_INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_SERVER_BASE_URL || '').replace(/\\/\$/, '');
+      const u = base + '/api/health';
       require('http').get(u, r => {
         let d = '';
         r.on('data', c => d += c);
         r.on('end', () => process.exit(r.statusCode === 200 && d.includes('ok') ? 0 : 1));
       }).on('error', () => process.exit(1));
     " >/dev/null 2>&1; then
-      pass "copilot — server-side fetch to ${public_url}/api/health"
+      pass "copilot — server-side fetch to internal or ${public_url}/api/health"
     else
-      fail "copilot — cannot reach ${public_url}/api/health from inside container (APIGENE_PORT / nginx listen mismatch?)"
+      fail "copilot — cannot reach its server-side base URL /api/health from inside the container (APIGENE_PORT / nginx listen mismatch?)"
     fi
   fi
 

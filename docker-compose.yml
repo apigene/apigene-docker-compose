@@ -40,6 +40,9 @@ x-apigene-local-env: &local-env
   # The single-dash default keeps an empty registry empty (local name:tag images).
   NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:8080}
   ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
+  # Copilot server-side calls. localhost is host-gateway (see the copilot service).
+  # ECS does not set this, so those tasks keep using NEXT_PUBLIC_SERVER_BASE_URL.
+  APIGENE_INTERNAL_BASE_URL: http://localhost:${APIGENE_PORT:-8080}
 
 services:
   mongo:
