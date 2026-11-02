@@ -46,7 +46,7 @@ x-apigene-local-env: &local-env
 
 services:
   mongo:
-    image: mongo:7
+    image: docker.io/library/mongo:7
     restart: unless-stopped
     command: ["mongod", "--config", "/etc/mongod.conf"]
     ports:
@@ -64,7 +64,7 @@ services:
       start_period: 15s
 
   redis:
-    image: redis:7-alpine
+    image: docker.io/library/redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no", "--loglevel", "warning"]
     logging:
