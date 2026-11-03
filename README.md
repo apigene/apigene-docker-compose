@@ -215,18 +215,19 @@ To sign in through an OL Hub Keycloak realm instead, set `NEXT_PUBLIC_AUTH_PROVI
 NEXT_PUBLIC_AUTH_PROVIDER=keycloak
 KEYCLOAK_ISSUER=https://keycloak.example.com/auth/realms/ol-hub
 KEYCLOAK_CLIENT_ID=hub-spa
-KEYCLOAK_CLIENT_SECRET=            # only for a confidential client
 KEYCLOAK_SCOPES=openid email profile
 NEXT_PUBLIC_KEYCLOAK_REDIRECT_URI=http://localhost:8080/client-api/auth/keycloak/callback
 AUTH_KEYCLOAK_ISSUER=https://keycloak.example.com/auth/realms/ol-hub
 AUTH_KEYCLOAK_ALLOWED_CLIENTS=hub-spa
 ```
 
+Set `KEYCLOAK_CLIENT_SECRET` only for a confidential client. For a public client such as `hub-spa`, leave it out of `.env`.
+
 | Variable | Description |
 |----------|-------------|
 | `KEYCLOAK_ISSUER` | Issuer of the OL Hub realm. Include the `/auth` path segment |
 | `KEYCLOAK_CLIENT_ID` | Client ID of the Keycloak client the Hub signs in with |
-| `KEYCLOAK_CLIENT_SECRET` | Only for a confidential client. Leave empty for a public client |
+| `KEYCLOAK_CLIENT_SECRET` | Set only for a confidential client. Omit it for a public client |
 | `KEYCLOAK_SCOPES` | Default `openid email profile`. Add `offline_access` only if the Keycloak client allows it |
 | `NEXT_PUBLIC_KEYCLOAK_REDIRECT_URI` | Callback URL the browser uses. Derived from `NEXT_PUBLIC_SERVER_BASE_URL` when unset |
 | `AUTH_KEYCLOAK_ISSUER` | Same issuer as `KEYCLOAK_ISSUER`, read by the backend |
@@ -239,7 +240,7 @@ AUTH_KEYCLOAK_ALLOWED_CLIENTS=hub-spa
 - Valid redirect URI: `<gene-url>/client-api/auth/keycloak/callback`
 - Valid post-logout redirect URI: `<gene-url>/sign-in`
 
-**Users and tenants.** Each user needs the `ol-tenantId` attribute. Keycloak maps it into the access token as `https://ol.tenants/tenantId`. Each tenant becomes its own Apigene organization, and every user is an organization admin.
+**Users and tenants.** Each user needs the `ol-tenantId` attribute. Keycloak maps it into the access token as `https://ol.tenants/tenantId`. Each tenant becomes its own Apigene organization. Users are admins of their tenant's organization by default. An explicit `org_role` claim in the token (for example `org:member`) overrides that default.
 
 **Hub UI origins.** Add each origin of the Hub UI that calls the Apigene API to `ALLOWED_ORIGINS`:
 
