@@ -207,6 +207,56 @@ NEXT_PUBLIC_AUTH_PROVIDER=clerk
 
 See the [Apigene docs](https://docs.apigene.ai/) for Clerk configuration when using that provider.
 
+### Keycloak (OL Hub)
+
+To sign in through an OL Hub Keycloak realm instead, set `NEXT_PUBLIC_AUTH_PROVIDER=keycloak` and the variables below. The `.env.example` file has the same block, commented out.
+
+```bash
+NEXT_PUBLIC_AUTH_PROVIDER=keycloak
+KEYCLOAK_ISSUER=https://keycloak.example.com/auth/realms/ol-hub
+KEYCLOAK_CLIENT_ID=hub-spa
+KEYCLOAK_SCOPES=openid email profile
+NEXT_PUBLIC_KEYCLOAK_REDIRECT_URI=http://localhost:8080/client-api/auth/keycloak/callback
+AUTH_KEYCLOAK_ISSUER=https://keycloak.example.com/auth/realms/ol-hub
+AUTH_KEYCLOAK_ALLOWED_CLIENTS=hub-spa
+```
+
+Set `KEYCLOAK_CLIENT_SECRET` only for a confidential client. For a public client such as `hub-spa`, leave it out of `.env`.
+
+| Variable | Description |
+|----------|-------------|
+| `KEYCLOAK_ISSUER` | Issuer of the OL Hub realm. Include the `/auth` path segment |
+| `KEYCLOAK_CLIENT_ID` | Client ID of the Keycloak client the Hub signs in with |
+| `KEYCLOAK_CLIENT_SECRET` | Set only for a confidential client. Omit it for a public client |
+| `KEYCLOAK_SCOPES` | Default `openid email profile`. Add `offline_access` only if the Keycloak client allows it |
+| `NEXT_PUBLIC_KEYCLOAK_REDIRECT_URI` | Callback URL the browser uses. Derived from `NEXT_PUBLIC_SERVER_BASE_URL` when unset |
+| `AUTH_KEYCLOAK_ISSUER` | Same issuer as `KEYCLOAK_ISSUER`, read by the backend |
+| `AUTH_KEYCLOAK_ALLOWED_CLIENTS` | Comma-separated allow-list of token `azp` values. Required: the backend and the MCP gateway refuse to start without it |
+
+`AUTH_APIGENE_SECRET_KEY` stays set in this mode.
+
+**Register on the Keycloak client.** `<gene-url>` is the URL users open in the browser (`http://localhost:8080` by default, or `NEXT_PUBLIC_SERVER_BASE_URL`):
+
+- Valid redirect URI: `<gene-url>/client-api/auth/keycloak/callback`
+- Valid post-logout redirect URI: `<gene-url>/sign-in`
+
+**Users and tenants.** Each user needs the `ol-tenantId` attribute. Keycloak maps it into the access token as `https://ol.tenants/tenantId`. Each tenant becomes its own Apigene organization. Users are admins of their tenant's organization by default. An explicit `org_role` claim in the token (for example `org:member`) overrides that default.
+
+**Hub UI origins.** Add each origin of the Hub UI that calls the Apigene API to `ALLOWED_ORIGINS`:
+
+```bash
+ALLOWED_ORIGINS=http://localhost:8080,https://hub.example.com
+```
+
+**Reverse proxies.** Keycloak sign-in sets three token cookies, so a reverse proxy in front of Gene must allow response headers of at least 16 KB. Customer proxies with smaller limits return 502 after login.
+
+**MCP clients.** Keycloak mode does not support browser OAuth login for MCP clients yet. Clients authenticate in one of two ways:
+
+- an organization API key, sent in the `apigene-api-key` header;
+- a Keycloak access token, sent as `Authorization: Bearer <token>`.
+
+**Locally built images.** To run images you built yourself, leave `APIGENE_IMAGE_REGISTRY` empty and set `APIGENE_IMAGE_TAG` to your tag. See [Images already on this machine](#container-images).
+
 ## Linux with Podman
 
 Podman runs this same Compose file through Docker Compose v2. `podman compose` (Podman 4.7+) selects the `docker-compose` provider and points it at the Podman API. Install that provider as `docker-compose` on `PATH`.
