@@ -340,6 +340,7 @@ An existing `.env` without `APIGENE_IMAGE_REGISTRY` keeps pulling `public.ecr.aw
 | Docker not running | Start Docker Desktop, then re-run `./apigene setup` or `./apigene start` |
 | `.env` missing | Run `./apigene setup` |
 | Backend unhealthy | Check `./apigene logs backend` — confirm MongoDB/Redis are healthy; wait 1–2 min on first boot |
+| Mongo exits immediately (code 132) | The VM CPU does not expose AVX. MongoDB 7 requires it on x86_64. Set the hypervisor CPU to host passthrough, reboot, and confirm `avx` is in `grep -m1 '^flags' /proc/cpuinfo`. `./apigene test` reports this directly. |
 | UI loads but API fails | Ensure the URL in your browser matches `NEXT_PUBLIC_SERVER_BASE_URL` (or derived `http://localhost:$APIGENE_PORT`) |
 | MCP tools fail with ECONNREFUSED | Restart mcp-gw — `APIGENE_URL` is set automatically to `http://nginx` |
 | Port already in use | Change `APIGENE_PORT` in `.env` and restart |

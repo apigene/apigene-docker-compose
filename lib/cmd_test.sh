@@ -97,6 +97,45 @@ cmd_test() {
     fi
   }
 
+  # MongoDB 5+ amd64 binaries require AVX and die with SIGILL (exit 132) when
+  # the guest CPU hides it. Read the host flags: the mongo container is often
+  # already exited, and a container sees the same /proc/cpuinfo.
+  check_cpu_avx() {
+    local arch flags mongo_id mongo_exit detail
+    arch="$(uname -m 2>/dev/null || true)"
+    case "$arch" in
+      x86_64|amd64) ;;
+      *)
+        info "CPU AVX check skipped (host ${arch:-unknown}; MongoDB requires AVX only on x86_64)"
+        return
+        ;;
+    esac
+    if [[ ! -r /proc/cpuinfo ]]; then
+      warn "CPU AVX check skipped (/proc/cpuinfo not readable)"
+      return
+    fi
+    flags="$(grep -m1 '^flags' /proc/cpuinfo 2>/dev/null || true)"
+    if [[ -z "$flags" ]]; then
+      warn "CPU AVX check skipped (no flags line in /proc/cpuinfo)"
+      return
+    fi
+    if [[ "$flags" =~ (^|[[:space:]])avx([[:space:]]|$) ]]; then
+      pass "CPU exposes AVX (required by MongoDB 7 on x86_64)"
+      return
+    fi
+    mongo_id="$(container_id mongo)"
+    mongo_exit=""
+    if [[ -n "$mongo_id" ]]; then
+      mongo_exit="$(apigene_ctr inspect -f '{{.State.ExitCode}}' "$mongo_id" 2>/dev/null || true)"
+    fi
+    detail="MongoDB 7 exits with code 132 until the VM CPU includes AVX. Set the hypervisor CPU to host passthrough, reboot, and confirm avx is present: grep -m1 '^flags' /proc/cpuinfo"
+    if [[ "$mongo_exit" == "132" ]]; then
+      fail "CPU does not expose AVX — mongo last exit code is 132. ${detail}"
+    else
+      fail "CPU does not expose AVX. ${detail}"
+    fi
+  }
+
   check_tcp_from_container() {
     local cid="$1" label="$2" host="$3" port="$4"
     if [[ -z "$cid" ]]; then
@@ -193,6 +232,7 @@ cmd_test() {
   local redis_id mongo_id mongo_vol
   redis_id="$(container_id redis)"
   mongo_id="$(container_id mongo)"
+  check_cpu_avx
   [[ -n "$redis_id" ]] && apigene_ctr exec "$redis_id" redis-cli ping 2>/dev/null | grep -q PONG && pass "redis — responds to PING" || fail "redis — PING failed"
   [[ -n "$mongo_id" ]] && apigene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1 && pass "mongo — responds to ping" || fail "mongo — ping failed"
   # Docker Compose names this apigene_mongo_data. podman-compose 1.0.3
