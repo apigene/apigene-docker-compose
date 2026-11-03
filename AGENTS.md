@@ -99,7 +99,7 @@ chmod +x apigene
 ## Conventions
 
 - **CLI:** Bash scripts in `lib/`; main entrypoint is `./apigene`
-- **Auth default:** Apigene API key; set `NEXT_PUBLIC_AUTH_PROVIDER=clerk` for Clerk OAuth
+- **Auth default:** `NEXT_PUBLIC_AUTH_PROVIDER=apigene` (API key). Supported values: `apigene | keycloak | clerk`
 - **Production:** Pin image tags; do not rely on `latest`
 
 ## Cross-repo impact
