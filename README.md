@@ -248,6 +248,8 @@ Set `KEYCLOAK_CLIENT_SECRET` only for a confidential client. For a public client
 ALLOWED_ORIGINS=http://localhost:8080,https://hub.example.com
 ```
 
+**Reverse proxies.** Keycloak sign-in sets three token cookies, so a reverse proxy in front of Gene must allow response headers of at least 16 KB. Customer proxies with smaller limits return 502 after login.
+
 **MCP clients.** Keycloak mode does not support browser OAuth login for MCP clients yet. Clients authenticate in one of two ways:
 
 - an organization API key, sent in the `apigene-api-key` header;
