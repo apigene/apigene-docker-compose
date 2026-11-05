@@ -221,7 +221,9 @@ apigene_pull_images() {
       fi
     fi
   else
-    apigene_compose pull "${services[@]}"
+    # pull_policy: never would make a plain `compose pull` succeed without
+    # fetching anything. --policy always is the explicit pull.
+    apigene_compose pull --policy always "${services[@]}"
   fi
   apigene_ok "Images up to date"
 }

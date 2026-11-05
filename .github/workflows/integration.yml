@@ -151,7 +151,7 @@ jobs:
       - name: Pull images
         run: |
           for attempt in 1 2 3 4 5; do
-            if docker compose pull; then
+            if docker compose pull --policy always; then
               exit 0
             fi
             echo "Pull failed (attempt ${attempt}/5); retrying in $((attempt * 30))s..."
@@ -362,7 +362,7 @@ jobs:
       - name: Pull images
         run: |
           for attempt in 1 2 3 4 5; do
-            if docker compose pull; then
+            if docker compose pull --policy always; then
               exit 0
             fi
             echo "Pull failed (attempt ${attempt}/5); retrying in $((attempt * 30))s..."
