@@ -28,6 +28,7 @@ Does **not** own:
 | Env template | `.env.example` |
 | Helper scripts | `lib/cmd_*.sh`, `lib/defaults.sh` |
 | Integration tests | `tests/integration.sh` |
+| Image command tests | `tests/images.sh` (no engine needed) |
 | Nginx routing | `nginx.conf` |
 
 ## Routing
@@ -81,6 +82,7 @@ chmod +x apigene
 | `./apigene start --pull` | Pull images, then start. Skips local `name:tag` images |
 | `./apigene images save` | Pull the stack images and write `apigene-images.tar.gz` |
 | `./apigene images load` | Load that archive into Docker or Podman |
+| `./apigene images push <registry>` | Push loaded images to a private registry, for the Helm chart's `images.mirror` |
 | `./apigene test` | Health checks |
 | `./apigene logs [service]` | Tail logs |
 | `./apigene stop` | Stop (keeps Mongo data) |
