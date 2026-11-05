@@ -34,6 +34,7 @@ Commands:
   logs [services]    Tail colored logs (add --raw for plain output)
   images save        Pull the stack images and write apigene-images.tar.gz
   images load        Load apigene-images.tar.gz into Docker or Podman
+  images push        Push loaded images to a private registry
 
 Examples:
   ./apigene setup

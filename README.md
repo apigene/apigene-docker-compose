@@ -307,6 +307,18 @@ Copy the stack files, `.env`, and `apigene-images.tar.gz` to the air-gapped mach
 
 Chat needs a model endpoint this host can reach. A cloud LLM provider is unreachable from an air-gapped network.
 
+### Private registry for Kubernetes
+
+`./apigene images load` puts images in the local engine, which Kubernetes nodes cannot use. To install the Helm chart without public registries, push the loaded images to your own registry. Log in to it first:
+
+```bash
+./apigene images load
+docker login registry.example.com
+./apigene images push registry.example.com/apigene
+```
+
+Images are published under their short names, such as `registry.example.com/apigene/mongo:7`. The archive also holds the chart's init image. Then set `images.mirror=registry.example.com/apigene` and the same `imageTag` in the chart.
+
 ## CLI reference
 
 ```bash

@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Save the stack images to an archive, or load that archive into Docker or Podman.
+# Save the stack images to an archive, load that archive into Docker or Podman,
+# or push the images to a private registry.
 # Used to carry an on-prem install onto a machine that cannot pull images.
 
 APIGENE_DEFAULT_IMAGE_ARCHIVE="apigene-images.tar.gz"
+# Init image of the Helm chart (initImage in values.yaml). Compose does not run it.
+APIGENE_INIT_IMAGE="docker.io/library/busybox:1.36"
 
 cmd_images_usage() {
   cat <<EOF
 Usage: ./apigene images <save|load> [archive]
+       ./apigene images push <registry>
 
   ./apigene images save [archive]   Pull the stack images and write an archive
   ./apigene images load [archive]   Load an archive into Docker or Podman
+  ./apigene images push <registry>  Push loaded images to a private registry
 
 The archive defaults to ${APIGENE_DEFAULT_IMAGE_ARCHIVE} in the current directory.
 Image names and tags come from .env. The file is a gzip-compressed Docker
@@ -21,7 +26,8 @@ without --pull.
 EOF
 }
 
-# One resolved ref per line: four Apigene images, MongoDB, and Redis.
+# One resolved ref per line: four Apigene images, MongoDB, Redis, and the
+# Helm chart's init image.
 apigene_stack_image_list() {
   local image seen=""
   local mongo redis
@@ -33,7 +39,8 @@ apigene_stack_image_list() {
     "$APIGENE_MCP_GW_IMAGE" \
     "$APIGENE_NGINX_IMAGE" \
     "$mongo" \
-    "$redis"
+    "$redis" \
+    "$APIGENE_INIT_IMAGE"
   do
     [[ " ${seen} " == *" ${image} "* ]] && continue
     seen+=" ${image}"
@@ -274,6 +281,80 @@ cmd_images_load() {
   apigene_info "Start without pulling: ${C_BOLD}./apigene start${C_RESET}"
 }
 
+# Publish under short names, as <registry>/mongo:7. The Helm chart's images.mirror
+# value expects that layout.
+cmd_images_push() {
+  local registry="" image target
+  local -a images=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        apigene_banner "Apigene Images"
+        cmd_images_usage
+        return 0
+        ;;
+      -*)
+        apigene_err "Unknown option: $1"
+        return 1
+        ;;
+      *)
+        if [[ -n "$registry" ]]; then
+          apigene_err "Unexpected argument: $1"
+          return 1
+        fi
+        registry="$1"
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "$registry" ]]; then
+    apigene_err "Registry is required: ./apigene images push <registry>"
+    return 1
+  fi
+  registry="${registry%/}"
+
+  apigene_load_env
+  if [[ ! -f .env ]]; then
+    apigene_warn "No .env — using the default registry and tag"
+  fi
+
+  apigene_runtime_init || return 1
+
+  while IFS= read -r image; do
+    [[ -n "$image" ]] && images+=("$image")
+  done < <(apigene_stack_image_list)
+
+  apigene_banner "Apigene Images"
+  apigene_info "Registry: ${registry}"
+  apigene_info "Engine:   ${APIGENE_RUNTIME}"
+
+  apigene_section "Check images"
+  for image in "${images[@]}"; do
+    if ! apigene_ctr image inspect "$image" >/dev/null 2>&1; then
+      apigene_err "Image not found: ${image}"
+      apigene_info "Run ./apigene images load first, with the same image settings in .env"
+      return 1
+    fi
+  done
+  apigene_ok "Images ready"
+
+  apigene_section "Push images"
+  for image in "${images[@]}"; do
+    target="${registry}/${image##*/}"
+    apigene_step "${image} -> ${target}"
+    apigene_ctr tag "$image" "$target" || return 1
+    if ! apigene_ctr push "$target"; then
+      apigene_err "Push failed: ${target}"
+      apigene_info "Log in first: ${APIGENE_RUNTIME} login ${registry%%/*}"
+      return 1
+    fi
+  done
+  apigene_ok "Images pushed to ${registry}"
+  apigene_info "Helm: ${C_BOLD}--set images.mirror=${registry}${C_RESET}"
+}
+
 cmd_images() {
   local sub="${1:-}"
 
@@ -293,6 +374,10 @@ cmd_images() {
     load)
       shift
       cmd_images_load "$@"
+      ;;
+    push)
+      shift
+      cmd_images_push "$@"
       ;;
     *)
       apigene_err "Unknown images command: $sub"
