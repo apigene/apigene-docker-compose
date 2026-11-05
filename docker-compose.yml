@@ -5,7 +5,8 @@
 #
 # Quick start (manual):
 #   cp .env.example .env   # configure .env
-#   ./apigene setup        # first time
+#   ./apigene setup        # first time from apigene-images.tar.gz
+#   ./apigene setup --pull # first time from the registry
 #   ./apigene start        # start existing install
 #   open http://localhost:$APIGENE_PORT
 #
@@ -47,6 +48,7 @@ x-apigene-local-env: &local-env
 services:
   mongo:
     image: docker.io/library/mongo:7
+    pull_policy: never
     restart: unless-stopped
     command: ["mongod", "--config", "/etc/mongod.conf"]
     ports:
@@ -65,6 +67,7 @@ services:
 
   redis:
     image: docker.io/library/redis:7-alpine
+    pull_policy: never
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no", "--loglevel", "warning"]
     logging:
@@ -78,6 +81,7 @@ services:
 
   backend:
     image: ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${APIGENE_BACKEND_IMAGE_NAME:-apigene-backend}:${APIGENE_BACKEND_IMAGE_TAG:-latest}
+    pull_policy: never
     platform: ${APIGENE_IMAGE_PLATFORM:-linux/amd64}
     restart: unless-stopped
     <<: *env-file
@@ -102,6 +106,7 @@ services:
 
   backend-worker:
     image: ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${APIGENE_BACKEND_IMAGE_NAME:-apigene-backend}:${APIGENE_BACKEND_IMAGE_TAG:-latest}
+    pull_policy: never
     platform: ${APIGENE_IMAGE_PLATFORM:-linux/amd64}
     restart: unless-stopped
     <<: *env-file
@@ -127,6 +132,7 @@ services:
 
   copilot:
     image: ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${APIGENE_COPILOT_IMAGE_NAME:-apigene-copilot}:${APIGENE_COPILOT_IMAGE_TAG:-latest}
+    pull_policy: never
     platform: ${APIGENE_IMAGE_PLATFORM:-linux/amd64}
     restart: unless-stopped
     <<: *env-file
@@ -152,6 +158,7 @@ services:
 
   mcp-gw:
     image: ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${APIGENE_MCP_GW_IMAGE_NAME:-apigene-mcp-gw}:${APIGENE_MCP_GW_IMAGE_TAG:-latest}
+    pull_policy: never
     platform: ${APIGENE_IMAGE_PLATFORM:-linux/amd64}
     restart: unless-stopped
     <<: *env-file
@@ -174,6 +181,7 @@ services:
 
   nginx:
     image: ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${APIGENE_NGINX_IMAGE_NAME:-apigene-nginx}:${APIGENE_NGINX_IMAGE_TAG:-latest}
+    pull_policy: never
     platform: ${APIGENE_IMAGE_PLATFORM:-linux/amd64}
     restart: unless-stopped
     environment:

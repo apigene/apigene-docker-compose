@@ -229,7 +229,8 @@ apigene_pull_images() {
 apigene_require_env() {
   if [[ ! -f .env ]]; then
     apigene_err ".env not found"
-    apigene_info "First-time setup: ${C_BOLD}./apigene setup${C_RESET}"
+    apigene_info "Bundle:   ${C_BOLD}./apigene setup${C_RESET}"
+    apigene_info "Registry: ${C_BOLD}./apigene setup --pull${C_RESET}"
     exit 1
   fi
 }

@@ -70,19 +70,23 @@ Default URL: `http://localhost:8080` (or `APIGENE_PORT`).
 git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 chmod +x apigene
-./apigene setup
+./apigene setup --pull
 ./apigene test
 ./tests/integration.sh
 ```
 
+`./apigene setup` loads `apigene-images.tar.gz` from the current directory and starts. A git clone has no archive, so local dev uses `--pull`. `./apigene package <tag>` writes `ol-gene-<tag>-linux-amd64.tar.gz` and a `.sha256` file. The archive includes `sbom/*.cdx.json`, one CycloneDX document per image, written by Syft. `./scripts/test-onprem-bundle.sh <tag>` checks those files, installs the tarball, and runs `./apigene test` before it is uploaded. The customer steps are in `INSTALL.md`.
+
 | Command | Purpose |
 |---------|---------|
-| `./apigene setup` | Create `.env`, pull images, start |
+| `./apigene setup` | Create `.env`, load `apigene-images.tar.gz`, start |
+| `./apigene setup --pull` | Create `.env`, pull images, start |
 | `./apigene start` | Start all services |
 | `./apigene start --pull` | Pull images, then start. Skips local `name:tag` images |
 | `./apigene images save` | Pull the stack images and write `apigene-images.tar.gz` |
 | `./apigene images load` | Load that archive into Docker or Podman |
 | `./apigene images push <registry>` | Push loaded images to a private registry, for the Helm chart's `images.mirror` |
+| `./apigene package <tag>` | Build the on-prem tarball for a release tag |
 | `./apigene test` | Health checks |
 | `./apigene logs [service]` | Tail logs |
 | `./apigene stop` | Stop (keeps Mongo data) |

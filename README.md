@@ -19,7 +19,11 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with Dock
 curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 ```
 
-This downloads the stack into the current directory (no Git required), creates `.env`, generates an auth secret, pulls images, and starts the stack. The directory must be empty, or already be an Apigene install. Re-running the installer there updates the files and keeps `.env`.
+This downloads the stack into the current directory (no Git required), creates `.env`, generates an auth secret, pulls images, and starts the stack (`./apigene setup --pull`). The directory must be empty, or already be an Apigene install. Re-running the installer there updates the files and keeps `.env`.
+
+### Release bundle
+
+An on-prem release is `ol-gene-<version>-linux-amd64.tar.gz` plus a `.sha256` file. Verify the checksum, unpack, and run `./apigene setup`. That loads `apigene-images.tar.gz` from the unpacked directory and starts without contacting a registry. The customer steps are in `INSTALL.md` inside the archive, next to `sbom/*.cdx.json` (one CycloneDX document per image). `./apigene package <tag>` builds that tarball from a machine that can pull. Syft must be on `PATH`.
 
 When it finishes, open **http://localhost:8080** (or your `APIGENE_PORT`).
 
@@ -38,10 +42,10 @@ git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 
 chmod +x apigene
-./apigene setup
+./apigene setup --pull
 ```
 
-`./apigene setup` creates `.env` from `.env.example`, generates `AUTH_APIGENE_SECRET_KEY` if needed, pulls images, and starts services.
+`./apigene setup --pull` creates `.env` from `.env.example`, generates `AUTH_APIGENE_SECRET_KEY` if needed, pulls images, and starts services. `./apigene setup` without `--pull` loads `apigene-images.tar.gz` instead.
 
 Open **http://localhost:8080** by default, or whatever port you set in `APIGENE_PORT`.
 
@@ -55,14 +59,14 @@ Open **http://localhost:8080** by default, or whatever port you set in `APIGENE_
 Verify everything is healthy:
 
 ```bash
-cd ~/apigene   # or your clone directory
+cd ~/apigene   # or your install directory
 ./apigene test
-./tests/integration.sh   # broad API integration suite
+./tests/integration.sh   # broad API integration suite, from a git clone
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` only if you are configuring manually — `./apigene setup` does this for you.
+Copy `.env.example` to `.env` only if you are configuring manually — `./apigene setup` and `./apigene setup --pull` do this for you.
 
 ### Local development (default)
 
@@ -151,7 +155,7 @@ APIGENE_IMAGE_TAG=5.5.0
 APIGENE_BACKEND_IMAGE_TAG=6.0.0
 ```
 
-Compose then uses `apigene-backend:6.0.0`, `apigene-copilot:5.5.0`, `apigene-mcp-gw:5.5.0`, and `apigene-nginx:5.5.0`. `./apigene setup` and `./apigene start --pull` still pull MongoDB and Redis, and leave those four images on the machine.
+Compose then uses `apigene-backend:6.0.0`, `apigene-copilot:5.5.0`, `apigene-mcp-gw:5.5.0`, and `apigene-nginx:5.5.0`. `./apigene setup --pull` and `./apigene start --pull` still pull MongoDB and Redis, and leave those four images on the machine when the registry is empty.
 
 On Apple Silicon, images you build locally are `linux/arm64`. Set `APIGENE_IMAGE_PLATFORM=linux/arm64` for that install. The published ECR images are `linux/amd64`.
 
@@ -284,26 +288,19 @@ To point Compose at a specific socket, set `DOCKER_HOST` (for example `unix:///r
 
 ## Air-gapped install
 
-Build the image archive on a machine that can reach the registries. Load it on the air-gapped machine. The file is a gzip-compressed Docker archive, so a file saved by Docker loads into Podman, and a file saved by Podman loads into Docker.
+The release bundle is the air-gapped install. Verify `ol-gene-<version>-linux-amd64.tar.gz.sha256`, unpack, and run `./apigene setup`.
 
-On the connected machine, pin the tags in `.env`, then save. `./apigene images save` pulls `linux/amd64` unless `APIGENE_IMAGE_PLATFORM` is set, including MongoDB (`mongo:7`) and Redis (`redis:7-alpine`).
+`./apigene package <tag>` builds that bundle on a machine that can reach the registries. The image archive inside it is a gzip-compressed Docker archive, so a file saved by Docker loads into Podman, and a file saved by Podman loads into Docker.
+
+To save only the image archive, pin the tags in `.env` and run `./apigene images save`. It pulls `linux/amd64` unless `APIGENE_IMAGE_PLATFORM` is set, including MongoDB (`mongo:7`) and Redis (`redis:7-alpine`).
 
 ```bash
 ./apigene images save
 ```
 
-That writes `apigene-images.tar.gz` in the current directory. Pass another path to change it: `./apigene images save /tmp/apigene-images.tar.gz`.
+That writes `apigene-images.tar.gz` in the current directory. Pass another path to change it: `./apigene images save /tmp/apigene-images.tar.gz`. `./apigene images load /tmp/apigene-images.tar.gz` loads a file that is not in the current directory. Keep the same `APIGENE_IMAGE_REGISTRY` and tags in `.env` that were used when the archive was saved. The loaded names have to match those settings.
 
-Copy the stack files, `.env`, and `apigene-images.tar.gz` to the air-gapped machine. Docker or Podman is already installed there. Load the archive and start without a pull:
-
-```bash
-./apigene images load
-./apigene start
-```
-
-`./apigene images load /tmp/apigene-images.tar.gz` loads a file that is not in the current directory. Keep the same `APIGENE_IMAGE_REGISTRY` and tags in `.env` that were used when the archive was saved. The loaded names have to match those settings.
-
-`./apigene setup` and `./apigene start --pull` contact the registry. On the air-gapped machine, use `./apigene images load` and `./apigene start`.
+`./apigene setup` loads `apigene-images.tar.gz` and does not contact the registry. `./apigene setup --pull` and `./apigene start --pull` do. On the air-gapped machine, unpack the release bundle and run `./apigene setup`.
 
 Chat needs a model endpoint this host can reach. A cloud LLM provider is unreachable from an air-gapped network.
 
@@ -322,11 +319,14 @@ Images are published under their short names, such as `registry.example.com/apig
 ## CLI reference
 
 ```bash
-./apigene setup              # First-time: create .env, pull images, start
+./apigene setup              # Load apigene-images.tar.gz, create .env, start
+./apigene setup --pull       # Create .env, pull images, start
 ./apigene start              # Start all services
 ./apigene start --pull       # Pull images, then start (skips local name:tag images)
 ./apigene images save        # Pull stack images into apigene-images.tar.gz
 ./apigene images load        # Load apigene-images.tar.gz into Docker or Podman
+./apigene package <tag>      # Build ol-gene-<tag>-linux-amd64.tar.gz, its .sha256, and sbom/*.cdx.json
+./scripts/test-onprem-bundle.sh <tag>  # Install that tarball and run ./apigene test
 ./apigene test               # Run health checks on the full stack
 ./apigene logs               # Tail colored logs
 ./apigene logs backend       # Tail a specific service
@@ -400,7 +400,8 @@ An existing `.env` without `APIGENE_IMAGE_REGISTRY` keeps pulling `public.ecr.aw
 | Problem | Fix |
 |---------|-----|
 | Docker not running | Start Docker Desktop, then re-run `./apigene setup` or `./apigene start` |
-| `.env` missing | Run `./apigene setup` |
+| `.env` missing | Run `./apigene setup` from a release bundle, or `./apigene setup --pull` from a git clone |
+| Archive not found | Unpack the release so `apigene-images.tar.gz` is next to `./apigene`, or pass that file's path |
 | Backend unhealthy | Check `./apigene logs backend` — confirm MongoDB/Redis are healthy; wait 1–2 min on first boot |
 | Mongo exits immediately (code 132) | The VM CPU does not expose AVX. MongoDB 7 requires it on x86_64. Set the hypervisor CPU to host passthrough, reboot, and confirm `avx` is in `grep -m1 '^flags' /proc/cpuinfo`. `./apigene test` reports this directly. |
 | UI loads but API fails | Ensure the URL in your browser matches `NEXT_PUBLIC_SERVER_BASE_URL` (or derived `http://localhost:$APIGENE_PORT`) |

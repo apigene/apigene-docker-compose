@@ -6,7 +6,7 @@
 # Options (environment variables):
 #   APIGENE_INSTALL_DIR   Install location (default: the current directory)
 #   APIGENE_BRANCH        Branch whose archive is downloaded (default: main)
-#   APIGENE_SKIP_SETUP    Set to 1 to download only, skip ./apigene setup
+#   APIGENE_SKIP_SETUP    Set to 1 to download only, skip ./apigene setup --pull
 
 set -euo pipefail
 
@@ -55,7 +55,7 @@ One-line install:
 Environment variables:
   APIGENE_INSTALL_DIR   Install directory (default: the current directory)
   APIGENE_BRANCH        Branch archive to download (default: main)
-  APIGENE_SKIP_SETUP    Set to 1 to skip ./apigene setup
+  APIGENE_SKIP_SETUP    Set to 1 to skip ./apigene setup --pull
 
 After install, the commands printed at the end run the stack from the directory that was used.
 EOF
@@ -221,7 +221,7 @@ run_setup() {
   section "Setup stack"
   (
     cd "${APIGENE_INSTALL_DIR}"
-    ./apigene setup
+    ./apigene setup --pull
   )
 }
 
@@ -280,7 +280,7 @@ main() {
   if [[ "${APIGENE_SKIP_SETUP}" != "1" ]]; then
     run_setup
   else
-    warn "Skipped ./apigene setup (APIGENE_SKIP_SETUP=1)"
+    warn "Skipped ./apigene setup --pull (APIGENE_SKIP_SETUP=1)"
   fi
 
   print_next_steps

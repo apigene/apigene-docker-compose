@@ -20,6 +20,8 @@ source "$APIGENE_ROOT/lib/cmd_test.sh"
 source "$APIGENE_ROOT/lib/cmd_logs.sh"
 # shellcheck disable=SC1091
 source "$APIGENE_ROOT/lib/cmd_images.sh"
+# shellcheck disable=SC1091
+source "$APIGENE_ROOT/lib/cmd_package.sh"
 
 apigene_usage() {
   apigene_banner "Apigene CLI"
@@ -27,7 +29,7 @@ apigene_usage() {
 Usage: ./apigene <command> [options]
 
 Commands:
-  setup              First-time install (create .env, pull images, start)
+  setup [--pull]     Load apigene-images.tar.gz and start. --pull uses the registry
   start [--pull]     Start all services
   stop [--volumes]   Stop services (optionally delete Mongo data)
   test               Run health checks on the full stack
@@ -35,9 +37,11 @@ Commands:
   images save        Pull the stack images and write apigene-images.tar.gz
   images load        Load apigene-images.tar.gz into Docker or Podman
   images push        Push loaded images to a private registry
+  package <tag>      Build ol-gene-<tag>-linux-amd64.tar.gz for a release
 
 Examples:
   ./apigene setup
+  ./apigene setup --pull
   ./apigene start
   ./apigene start --pull
   ./apigene test
@@ -46,6 +50,7 @@ Examples:
   ./apigene logs backend
   ./apigene images save
   ./apigene images load
+  ./apigene package 5.5.1
 
 Options:
   -h, --help         Show help for a command or this overview
@@ -84,6 +89,10 @@ main() {
     images)
       shift
       cmd_images "$@"
+      ;;
+    package)
+      shift
+      cmd_package "$@"
       ;;
     *)
       apigene_err "Unknown command: $cmd"
