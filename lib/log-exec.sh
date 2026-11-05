@@ -1,6 +1,11 @@
 #!/bin/sh
-# Duplicate a process's stdout/stderr into /var/log/apigene/<service>.jsonl,
-# then exec the real command so it stays PID 1.
+# Copy a process's stdout/stderr into /var/log/apigene/<service>.jsonl and
+# leave the container's original stdout in place, then exec the real command
+# so it stays PID 1.
+#
+# `docker logs` / `podman logs` read that original stdout. Replacing it (the
+# previous behavior) hid lines such as "celery@… ready" from anything that
+# tails the container log.
 #
 # Usage: log-exec.sh <service> <command> [args...]
 set -u
@@ -13,11 +18,13 @@ if [ "$#" -eq 0 ]; then
   exit 1
 fi
 
-dir=/var/log/apigene
+here=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+writer="${here}/log-writer.sh"
+dir="${LOG_DIR:-/var/log/apigene}"
 file="${dir}/${svc}.jsonl"
 pipe="/tmp/apigene-log-${svc}"
 
-if ! command -v sed >/dev/null 2>&1 || ! command -v date >/dev/null 2>&1; then
+if ! command -v sed >/dev/null 2>&1 || ! command -v date >/dev/null 2>&1 || [ ! -f "$writer" ]; then
   exec "$@"
 fi
 
@@ -33,6 +40,8 @@ if ! mkfifo "$pipe" 2>/dev/null; then
   exec "$@"
 fi
 
-/bin/sh /opt/apigene/log-writer.sh "$svc" "$file" < "$pipe" &
-
-exec "$@" > "$pipe" 2>&1
+# fd 3 is the stdout the log driver already attached. The writer reprints each
+# raw line there. The app only writes the fifo, and stays PID 1.
+exec 3>&1
+/bin/sh "$writer" "$svc" "$file" < "$pipe" >&3 3>&- &
+exec "$@" > "$pipe" 2>&1 3>&-

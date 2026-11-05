@@ -1,6 +1,7 @@
 #!/bin/sh
-# Read log lines on stdin and append JSONL. Rotates at LOG_ROTATE_BYTES
-# (default 20MB), keeping the active file plus four archives.
+# Read log lines on stdin, reprint each one on stdout, and append JSONL.
+# Rotates at LOG_ROTATE_BYTES (default 20MB), keeping the active file plus
+# four archives. log-exec.sh points stdout at the container's original stdout.
 set -u
 
 svc="$1"
@@ -32,6 +33,9 @@ while IFS= read -r line || [ -n "$line" ]; do
       rotate
     fi
   fi
+  # Container log first, so a slow JSON append cannot hide the line from
+  # `docker logs` / `podman logs`.
+  printf '%s\n' "$line"
   esc=$(printf '\033')
   clean=$(printf '%s' "$line" | sed "s/${esc}\\[[0-9;]*[A-Za-z]//g" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\r')
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
