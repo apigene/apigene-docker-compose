@@ -1,5 +1,5 @@
 .env
 .DS_Store
-apigene-images.tar
-apigene-images.tar.gz
+*.tar
+*.tar.gz
 .apigene/
