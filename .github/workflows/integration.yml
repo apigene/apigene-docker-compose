@@ -162,7 +162,7 @@ jobs:
       - name: Start stack
         run: |
           set -euo pipefail
-          chmod +x apigene tests/integration.sh
+          chmod +x olgene tests/integration.sh
           docker compose up -d
 
           # Wait until services that ./olgene test asserts are actually ready.
@@ -373,7 +373,7 @@ jobs:
       - name: Start stack
         run: |
           set -euo pipefail
-          chmod +x apigene tests/integration.sh
+          chmod +x olgene tests/integration.sh
           docker compose up -d
 
           # ./olgene test fails while any health status is still "starting".
@@ -566,7 +566,7 @@ jobs:
       - name: Pull images and start stack
         run: |
           set -euo pipefail
-          chmod +x apigene tests/integration.sh
+          chmod +x olgene tests/integration.sh
           ./olgene start --pull
 
           # ./olgene test fails while any health status is still "starting".

@@ -41,7 +41,7 @@ Optional environment variables for the installer:
 git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 
-chmod +x apigene
+chmod +x olgene
 ./olgene setup --pull
 ```
 

@@ -69,7 +69,7 @@ Default URL: `http://localhost:8080` (or `APIGENE_PORT`).
 ```bash
 git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
-chmod +x apigene
+chmod +x olgene
 ./olgene setup --pull
 ./olgene test
 ./tests/integration.sh
