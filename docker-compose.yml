@@ -5,9 +5,9 @@
 #
 # Quick start (manual):
 #   cp .env.example .env   # configure .env
-#   ./apigene setup        # first time from apigene-images.tar.gz
-#   ./apigene setup --pull # first time from the registry
-#   ./apigene start        # start existing install
+#   ./olgene setup        # first time from olgene-images.tar.gz
+#   ./olgene setup --pull # first time from the registry
+#   ./olgene start        # start existing install
 #   open http://localhost:$APIGENE_PORT
 #
 # Nginx is the only public entry point. It routes:
@@ -36,7 +36,7 @@ x-apigene-local-env: &local-env
   # Local default: http://localhost:$APIGENE_PORT. Set NEXT_PUBLIC_SERVER_BASE_URL for a
   # custom domain, LAN IP, or HTTPS URL; ALLOWED_ORIGINS follows unless overridden.
   # Single-level defaults: podman-compose 1.0.3 stops substitution at the first "}".
-  # ./apigene exports the port-derived URL before compose runs.
+  # ./olgene exports the port-derived URL before compose runs.
   # Image refs are ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${NAME}:${TAG}.
   # The single-dash default keeps an empty registry empty (local name:tag images).
   NEXT_PUBLIC_SERVER_BASE_URL: ${NEXT_PUBLIC_SERVER_BASE_URL:-http://localhost:8080}

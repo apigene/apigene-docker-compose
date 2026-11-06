@@ -165,7 +165,7 @@ jobs:
           chmod +x apigene tests/integration.sh
           docker compose up -d
 
-          # Wait until services that ./apigene test asserts are actually ready.
+          # Wait until services that ./olgene test asserts are actually ready.
           # HTTP health alone is not enough: nginx Docker healthcheck can still
           # be "starting", and Celery needs longer to print "celery@… ready".
           echo "Waiting for nginx healthy + Celery worker ready..."
@@ -198,8 +198,8 @@ jobs:
           docker compose logs --tail=200 backend backend-worker nginx
           exit 1
 
-      - name: Smoke checks (./apigene test)
-        run: ./apigene test
+      - name: Smoke checks (./olgene test)
+        run: ./olgene test
 
       - name: API integration tests
         run: ./tests/integration.sh
@@ -376,7 +376,7 @@ jobs:
           chmod +x apigene tests/integration.sh
           docker compose up -d
 
-          # ./apigene test fails while any health status is still "starting".
+          # ./olgene test fails while any health status is still "starting".
           # Mongo's probe interval is 30s, so nginx can be healthy first.
           echo "Waiting for every healthcheck and the Celery worker..."
           services=(mongo redis backend backend-worker mcp-gw nginx copilot)
@@ -417,8 +417,8 @@ jobs:
           docker compose logs --tail=200 backend backend-worker nginx
           exit 1
 
-      - name: Smoke checks (./apigene test)
-        run: ./apigene test
+      - name: Smoke checks (./olgene test)
+        run: ./olgene test
 
       - name: API integration tests
         run: ./tests/integration.sh
@@ -510,7 +510,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y podman python3-venv
-          # The runner's Docker daemon would make ./apigene select Docker.
+          # The runner's Docker daemon would make ./olgene select Docker.
           sudo systemctl stop docker.socket docker.service || true
           sudo python3 -m venv /opt/podman-compose-venv
           sudo /opt/podman-compose-venv/bin/pip install --disable-pip-version-check 'podman-compose==1.0.3'
@@ -567,9 +567,9 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x apigene tests/integration.sh
-          ./apigene start --pull
+          ./olgene start --pull
 
-          # ./apigene test fails while any health status is still "starting".
+          # ./olgene test fails while any health status is still "starting".
           # Mongo's probe interval is 30s, so nginx can be healthy first.
           echo "Waiting for every healthcheck and the Celery worker..."
           services=(mongo redis backend backend-worker mcp-gw nginx copilot)
@@ -606,8 +606,8 @@ jobs:
           podman logs --tail 200 "$(podman ps -aq --filter label=com.docker.compose.service=backend | head -1)" || true
           exit 1
 
-      - name: Smoke checks (./apigene test)
-        run: ./apigene test
+      - name: Smoke checks (./olgene test)
+        run: ./olgene test
 
       - name: API integration tests
         run: ./tests/integration.sh

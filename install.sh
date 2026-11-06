@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Apigene one-line installer
+# OL-Gene one-line installer
 #
 #   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 #
 # Options (environment variables):
 #   APIGENE_INSTALL_DIR   Install location (default: the current directory)
 #   APIGENE_BRANCH        Branch whose archive is downloaded (default: main)
-#   APIGENE_SKIP_SETUP    Set to 1 to download only, skip ./apigene setup --pull
+#   APIGENE_SKIP_SETUP    Set to 1 to download only, skip ./olgene setup --pull
 
 set -euo pipefail
 
@@ -40,14 +40,14 @@ section() {
 banner() {
   echo -e "${C_BOLD}${C_MAGENTA}"
   echo "  ╔══════════════════════════════════════╗"
-  printf "  ║ %-36s ║\n" "Apigene Installer"
+  printf "  ║ %-36s ║\n" "OL-Gene Installer"
   echo "  ╚══════════════════════════════════════╝"
   echo -e "${C_RESET}"
 }
 
 usage() {
   cat <<EOF
-Apigene installer — run the full platform locally with Docker or Podman.
+OL-Gene installer — run the full platform locally with Docker or Podman.
 
 One-line install:
   curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
@@ -55,7 +55,7 @@ One-line install:
 Environment variables:
   APIGENE_INSTALL_DIR   Install directory (default: the current directory)
   APIGENE_BRANCH        Branch archive to download (default: main)
-  APIGENE_SKIP_SETUP    Set to 1 to skip ./apigene setup --pull
+  APIGENE_SKIP_SETUP    Set to 1 to skip ./olgene setup --pull
 
 After install, the commands printed at the end run the stack from the directory that was used.
 EOF
@@ -136,7 +136,7 @@ check_engine() {
 # A previous installer run, not an unrelated directory that happens to share the name.
 install_present() {
   local dir="$1"
-  [[ -f "${dir}/apigene" && -f "${dir}/docker-compose.yml" ]]
+  [[ -f "${dir}/olgene" && -f "${dir}/docker-compose.yml" ]]
 }
 
 # Empty, or only a kept .env from an interrupted run. Other files stay untouched.
@@ -172,9 +172,9 @@ install_files() {
   fi
 
   extracted="$(find "${stage}" -mindepth 1 -maxdepth 1 -type d -print -quit)"
-  if [[ -z "${extracted}" || ! -f "${extracted}/apigene" ]]; then
+  if [[ -z "${extracted}" || ! -f "${extracted}/olgene" ]]; then
     rm -rf "${stage}"
-    err "Downloaded archive did not contain the Apigene CLI"
+    err "Downloaded archive did not contain the OL-Gene CLI"
     exit 1
   fi
 
@@ -195,20 +195,20 @@ install_files() {
   fi
   rm -rf "${stage}"
 
-  chmod +x "${APIGENE_INSTALL_DIR}/apigene"
-  ok "CLI ready: ${APIGENE_INSTALL_DIR}/apigene"
+  chmod +x "${APIGENE_INSTALL_DIR}/olgene"
+  ok "CLI ready: ${APIGENE_INSTALL_DIR}/olgene"
 }
 
 maybe_install_cli_symlink() {
   local bin_dir="${HOME}/.local/bin"
-  local link_path="${bin_dir}/apigene"
+  local link_path="${bin_dir}/olgene"
 
   if [[ -d "${bin_dir}" || "${APIGENE_LINK_CLI:-0}" == "1" ]]; then
     mkdir -p "${bin_dir}"
-    ln -sf "${APIGENE_INSTALL_DIR}/apigene" "${link_path}"
+    ln -sf "${APIGENE_INSTALL_DIR}/olgene" "${link_path}"
     ok "Linked CLI to ${link_path}"
     if [[ ":${PATH}:" != *":${bin_dir}:"* ]]; then
-      warn "Add ${bin_dir} to your PATH to run ${C_BOLD}apigene${C_RESET} from anywhere:"
+      warn "Add ${bin_dir} to your PATH to run ${C_BOLD}olgene${C_RESET} from anywhere:"
       info "  export PATH=\"\${HOME}/.local/bin:\${PATH}\""
     fi
   else
@@ -221,7 +221,7 @@ run_setup() {
   section "Setup stack"
   (
     cd "${APIGENE_INSTALL_DIR}"
-    ./apigene setup --pull
+    ./olgene setup --pull
   )
 }
 
@@ -236,11 +236,11 @@ print_next_steps() {
     local open_port="${APIGENE_DEFAULT_PORT}"
     local explicit_base_url=""
     if [[ -f "${env_file}" ]]; then
-      open_port="$(apigene_env_file_value "${env_file}" APIGENE_PORT || true)"
-      explicit_base_url="$(apigene_env_file_value "${env_file}" NEXT_PUBLIC_SERVER_BASE_URL || true)"
+      open_port="$(olgene_env_file_value "${env_file}" APIGENE_PORT || true)"
+      explicit_base_url="$(olgene_env_file_value "${env_file}" NEXT_PUBLIC_SERVER_BASE_URL || true)"
     fi
     open_port="${open_port:-${APIGENE_DEFAULT_PORT}}"
-    open_url="$(apigene_resolve_base_url "${open_port}" "${explicit_base_url}")"
+    open_url="$(olgene_resolve_base_url "${open_port}" "${explicit_base_url}")"
   fi
 
   if [[ -f "${env_file}" ]] \
@@ -251,8 +251,8 @@ print_next_steps() {
   fi
 
   info "Open:    ${C_BOLD}${open_url}${C_RESET}"
-  info "Test:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene test${C_RESET}"
-  info "Logs:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./apigene logs${C_RESET}"
+  info "Test:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./olgene test${C_RESET}"
+  info "Logs:    ${C_BOLD}cd ${APIGENE_INSTALL_DIR} && ./olgene logs${C_RESET}"
   info "Sign in, add an LLM key under Settings → Models, then copy your API key for MCP clients."
   info "Docs:    https://github.com/apigene/apigene-docker-compose"
   echo ""
@@ -280,7 +280,7 @@ main() {
   if [[ "${APIGENE_SKIP_SETUP}" != "1" ]]; then
     run_setup
   else
-    warn "Skipped ./apigene setup --pull (APIGENE_SKIP_SETUP=1)"
+    warn "Skipped ./olgene setup --pull (APIGENE_SKIP_SETUP=1)"
   fi
 
   print_next_steps

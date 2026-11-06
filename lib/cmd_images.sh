@@ -3,36 +3,36 @@
 # or push the images to a private registry.
 # Used to carry an on-prem install onto a machine that cannot pull images.
 
-APIGENE_DEFAULT_IMAGE_ARCHIVE="apigene-images.tar.gz"
+APIGENE_DEFAULT_IMAGE_ARCHIVE="olgene-images.tar.gz"
 # Init image of the Helm chart (initImage in values.yaml). Compose does not run it.
 APIGENE_INIT_IMAGE="docker.io/library/busybox:1.36"
 
 cmd_images_usage() {
   cat <<EOF
-Usage: ./apigene images <save|load> [archive]
-       ./apigene images push <registry>
+Usage: ./olgene images <save|load> [archive]
+       ./olgene images push <registry>
 
-  ./apigene images save [archive]   Pull the stack images and write an archive
-  ./apigene images load [archive]   Load an archive into Docker or Podman
-  ./apigene images push <registry>  Push loaded images to a private registry
+  ./olgene images save [archive]   Pull the stack images and write an archive
+  ./olgene images load [archive]   Load an archive into Docker or Podman
+  ./olgene images push <registry>  Push loaded images to a private registry
 
 The archive defaults to ${APIGENE_DEFAULT_IMAGE_ARCHIVE} in the current directory.
 Image names and tags come from .env. The file is a gzip-compressed Docker
 archive, so it loads into either engine.
 
 Save pulls ${APIGENE_IMAGE_PLATFORM:-linux/amd64} unless APIGENE_IMAGE_PLATFORM is set.
-On the air-gapped machine, load the archive and run ./apigene start
+On the air-gapped machine, load the archive and run ./olgene start
 without --pull.
 EOF
 }
 
 # One resolved ref per line: four Apigene images, MongoDB, Redis, and the
 # Helm chart's init image.
-apigene_stack_image_list() {
+olgene_stack_image_list() {
   local image seen=""
   local mongo redis
-  mongo="$(apigene_literal_service_image mongo)"
-  redis="$(apigene_literal_service_image redis)"
+  mongo="$(olgene_literal_service_image mongo)"
+  redis="$(olgene_literal_service_image redis)"
   for image in \
     "$APIGENE_BACKEND_IMAGE" \
     "$APIGENE_COPILOT_IMAGE" \
@@ -50,22 +50,22 @@ apigene_stack_image_list() {
 
 # mongo:7 and redis:7-alpine have no registry slash, but they are published
 # library images and must be pulled for the target platform.
-apigene_image_is_hub_library() {
+olgene_image_is_hub_library() {
   local name="${1%%:*}"
   [[ "$name" == "mongo" || "$name" == "redis" ]]
 }
 
-apigene_platform_arch() {
+olgene_platform_arch() {
   local platform="$1"
   printf '%s\n' "${platform##*/}"
 }
 
-apigene_image_arch() {
-  apigene_ctr image inspect --format '{{.Architecture}}' "$1" 2>/dev/null || true
+olgene_image_arch() {
+  olgene_ctr image inspect --format '{{.Architecture}}' "$1" 2>/dev/null || true
 }
 
 # Drop a trailing tag. localhost:5000/name:tag keeps the registry port.
-apigene_image_repo() {
+olgene_image_repo() {
   local image="$1" last
   last="${image##*:}"
   if [[ "$image" == *:* && "$last" != */* ]]; then
@@ -76,12 +76,12 @@ apigene_image_repo() {
 }
 
 # Platform digest from a multi-arch index. Empty when the image is single-arch.
-apigene_platform_digest() {
+olgene_platform_digest() {
   local image="$1" platform="$2" os arch
   os="${platform%%/*}"
   arch="${platform##*/}"
   command -v python3 >/dev/null 2>&1 || return 1
-  apigene_ctr manifest inspect "$image" 2>/dev/null | python3 -c '
+  olgene_ctr manifest inspect "$image" 2>/dev/null | python3 -c '
 import json, sys
 os_name, arch = sys.argv[1], sys.argv[2]
 try:
@@ -101,64 +101,64 @@ raise SystemExit(1)
 
 # Put the previous image id back on its name after the archive is written.
 # A running engine can keep another architecture under the same tag.
-apigene_restore_displaced_images() {
+olgene_restore_displaced_images() {
   local entry name id
   [[ ${#APIGENE_IMAGE_RESTORE[@]} -eq 0 ]] && return 0
   for entry in "${APIGENE_IMAGE_RESTORE[@]}"; do
     name="${entry%%|*}"
     id="${entry#*|}"
-    apigene_ctr tag "$id" "$name" >/dev/null || true
-    apigene_ctr image rm "${name}-apigene-previous" >/dev/null || true
+    olgene_ctr tag "$id" "$name" >/dev/null || true
+    olgene_ctr image rm "${name}-apigene-previous" >/dev/null || true
   done
   APIGENE_IMAGE_RESTORE=()
 }
 
-apigene_pull_image() {
+olgene_pull_image() {
   local image="$1" platform="$2" want have current_id keep
-  want="$(apigene_platform_arch "$platform")"
-  if apigene_image_is_local "$image" && ! apigene_image_is_hub_library "$image"; then
-    if ! apigene_ctr inspect "$image" >/dev/null 2>&1; then
-      apigene_err "Local image not found: ${image}"
-      apigene_info "Build or tag it before saving the archive"
+  want="$(olgene_platform_arch "$platform")"
+  if olgene_image_is_local "$image" && ! olgene_image_is_hub_library "$image"; then
+    if ! olgene_ctr inspect "$image" >/dev/null 2>&1; then
+      olgene_err "Local image not found: ${image}"
+      olgene_info "Build or tag it before saving the archive"
       return 1
     fi
-    have="$(apigene_image_arch "$image")"
+    have="$(olgene_image_arch "$image")"
     if [[ -n "$have" && "$have" != "$want" ]]; then
-      apigene_warn "${image} is ${have}; the archive will contain ${have}"
+      olgene_warn "${image} is ${have}; the archive will contain ${have}"
     fi
-    apigene_info "Local image, not pulling: ${image}"
+    olgene_info "Local image, not pulling: ${image}"
     return 0
   fi
 
-  have="$(apigene_image_arch "$image")"
+  have="$(olgene_image_arch "$image")"
   if [[ "$have" == "$want" ]]; then
-    apigene_info "Already present (${want}): ${image}"
+    olgene_info "Already present (${want}): ${image}"
     return 0
   fi
 
-  apigene_step "Pulling ${image} (${platform})"
+  olgene_step "Pulling ${image} (${platform})"
   if [[ -n "$have" ]]; then
-    current_id="$(apigene_ctr image inspect --format '{{.Id}}' "$image")"
+    current_id="$(olgene_ctr image inspect --format '{{.Id}}' "$image")"
     keep="${image}-apigene-previous"
-    apigene_info "Local ${image} is ${have}; pulling ${platform}"
-    apigene_ctr tag "$image" "$keep"
+    olgene_info "Local ${image} is ${have}; pulling ${platform}"
+    olgene_ctr tag "$image" "$keep"
     APIGENE_IMAGE_RESTORE+=("${image}|${current_id}")
   fi
   # A multi-arch tag inspects as the host architecture. Pull the platform
   # manifest itself and point the tag at that single image while saving.
-  digest="$(apigene_platform_digest "$image" "$platform" || true)"
+  digest="$(olgene_platform_digest "$image" "$platform" || true)"
   if [[ -n "$digest" ]]; then
-    repo="$(apigene_image_repo "$image")"
-    if ! apigene_ctr pull "${repo}@${digest}"; then
+    repo="$(olgene_image_repo "$image")"
+    if ! olgene_ctr pull "${repo}@${digest}"; then
       return 1
     fi
-    apigene_ctr tag "${repo}@${digest}" "$image"
-  elif ! apigene_ctr pull --platform "$platform" "$image"; then
+    olgene_ctr tag "${repo}@${digest}" "$image"
+  elif ! olgene_ctr pull --platform "$platform" "$image"; then
     return 1
   fi
-  have="$(apigene_image_arch "$image")"
+  have="$(olgene_image_arch "$image")"
   if [[ "$have" != "$want" ]]; then
-    apigene_err "${image} is ${have:-missing} after pulling ${platform}"
+    olgene_err "${image} is ${have:-missing} after pulling ${platform}"
     return 1
   fi
 }
@@ -171,17 +171,17 @@ cmd_images_save() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --platform)
-        [[ $# -ge 2 ]] || { apigene_err "--platform requires a value"; return 1; }
+        [[ $# -ge 2 ]] || { olgene_err "--platform requires a value"; return 1; }
         platform="$2"
         shift 2
         ;;
       -h|--help)
-        apigene_banner "Apigene Images"
+        olgene_banner "OL-Gene Images"
         cmd_images_usage
         return 0
         ;;
       -*)
-        apigene_err "Unknown option: $1"
+        olgene_err "Unknown option: $1"
         return 1
         ;;
       *)
@@ -191,55 +191,55 @@ cmd_images_save() {
     esac
   done
 
-  apigene_load_env
+  olgene_load_env
   if [[ ! -f .env ]]; then
-    apigene_warn "No .env — archive uses the default registry and tag"
+    olgene_warn "No .env — archive uses the default registry and tag"
   fi
   platform="${platform:-${APIGENE_IMAGE_PLATFORM:-linux/amd64}}"
 
-  apigene_runtime_init || return 1
+  olgene_runtime_init || return 1
   # Bash 3.2 has no RETURN trap, so every exit after a pull restores tags.
   APIGENE_IMAGE_RESTORE=()
 
   while IFS= read -r image; do
     [[ -n "$image" ]] && images+=("$image")
-  done < <(apigene_stack_image_list)
+  done < <(olgene_stack_image_list)
 
-  apigene_banner "Apigene Images"
-  apigene_print_images
-  apigene_info "Platform:  ${platform}"
-  apigene_info "Archive:   ${archive}"
-  apigene_info "Engine:    ${APIGENE_RUNTIME}"
+  olgene_banner "OL-Gene Images"
+  olgene_print_images
+  olgene_info "Platform:  ${platform}"
+  olgene_info "Archive:   ${archive}"
+  olgene_info "Engine:    ${OLGENE_RUNTIME}"
 
-  apigene_section "Pull images"
+  olgene_section "Pull images"
   for image in "${images[@]}"; do
-    if ! apigene_pull_image "$image" "$platform"; then
-      apigene_restore_displaced_images
+    if ! olgene_pull_image "$image" "$platform"; then
+      olgene_restore_displaced_images
       return 1
     fi
   done
-  apigene_ok "Images ready"
+  olgene_ok "Images ready"
 
-  apigene_section "Save archive"
+  olgene_section "Save archive"
   # docker load and podman load both read a gzip-compressed Docker archive.
   set -o pipefail
-  if [[ "$APIGENE_RUNTIME" == "podman" ]]; then
-    apigene_step "podman save --format docker-archive | gzip > ${archive}"
-    if ! apigene_ctr save --format docker-archive "${images[@]}" | gzip > "$archive"; then
-      apigene_restore_displaced_images
+  if [[ "$OLGENE_RUNTIME" == "podman" ]]; then
+    olgene_step "podman save --format docker-archive | gzip > ${archive}"
+    if ! olgene_ctr save --format docker-archive "${images[@]}" | gzip > "$archive"; then
+      olgene_restore_displaced_images
       return 1
     fi
   else
-    apigene_step "docker save | gzip > ${archive}"
-    if ! apigene_ctr save "${images[@]}" | gzip > "$archive"; then
-      apigene_restore_displaced_images
+    olgene_step "docker save | gzip > ${archive}"
+    if ! olgene_ctr save "${images[@]}" | gzip > "$archive"; then
+      olgene_restore_displaced_images
       return 1
     fi
   fi
-  apigene_restore_displaced_images
-  apigene_ok "Wrote ${archive}"
-  apigene_info "Copy this file and the same image settings in .env to the air-gapped machine."
-  apigene_info "Load there with: ${C_BOLD}./apigene images load ${archive}${C_RESET}"
+  olgene_restore_displaced_images
+  olgene_ok "Wrote ${archive}"
+  olgene_info "Copy this file and the same image settings in .env to the air-gapped machine."
+  olgene_info "Load there with: ${C_BOLD}./olgene images load ${archive}${C_RESET}"
 }
 
 cmd_images_load() {
@@ -248,12 +248,12 @@ cmd_images_load() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help)
-        apigene_banner "Apigene Images"
+        olgene_banner "OL-Gene Images"
         cmd_images_usage
         return 0
         ;;
       -*)
-        apigene_err "Unknown option: $1"
+        olgene_err "Unknown option: $1"
         return 1
         ;;
       *)
@@ -264,21 +264,21 @@ cmd_images_load() {
   done
 
   if [[ ! -f "$archive" ]]; then
-    apigene_err "Archive not found: ${archive}"
+    olgene_err "Archive not found: ${archive}"
     return 1
   fi
 
-  apigene_runtime_init || return 1
+  olgene_runtime_init || return 1
 
-  apigene_banner "Apigene Images"
-  apigene_info "Archive:  ${archive}"
-  apigene_info "Engine:   ${APIGENE_RUNTIME}"
+  olgene_banner "OL-Gene Images"
+  olgene_info "Archive:  ${archive}"
+  olgene_info "Engine:   ${OLGENE_RUNTIME}"
 
-  apigene_section "Load archive"
-  apigene_step "${APIGENE_RUNTIME} load -i ${archive}"
-  apigene_ctr load -i "$archive"
-  apigene_ok "Images loaded into ${APIGENE_RUNTIME}"
-  apigene_info "Start without pulling: ${C_BOLD}./apigene start${C_RESET}"
+  olgene_section "Load archive"
+  olgene_step "${OLGENE_RUNTIME} load -i ${archive}"
+  olgene_ctr load -i "$archive"
+  olgene_ok "Images loaded into ${OLGENE_RUNTIME}"
+  olgene_info "Start without pulling: ${C_BOLD}./olgene start${C_RESET}"
 }
 
 # Publish under short names, as <registry>/mongo:7. The Helm chart's images.mirror
@@ -290,17 +290,17 @@ cmd_images_push() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help)
-        apigene_banner "Apigene Images"
+        olgene_banner "OL-Gene Images"
         cmd_images_usage
         return 0
         ;;
       -*)
-        apigene_err "Unknown option: $1"
+        olgene_err "Unknown option: $1"
         return 1
         ;;
       *)
         if [[ -n "$registry" ]]; then
-          apigene_err "Unexpected argument: $1"
+          olgene_err "Unexpected argument: $1"
           return 1
         fi
         registry="$1"
@@ -310,49 +310,49 @@ cmd_images_push() {
   done
 
   if [[ -z "$registry" ]]; then
-    apigene_err "Registry is required: ./apigene images push <registry>"
+    olgene_err "Registry is required: ./olgene images push <registry>"
     return 1
   fi
   registry="${registry%/}"
 
-  apigene_load_env
+  olgene_load_env
   if [[ ! -f .env ]]; then
-    apigene_warn "No .env — using the default registry and tag"
+    olgene_warn "No .env — using the default registry and tag"
   fi
 
-  apigene_runtime_init || return 1
+  olgene_runtime_init || return 1
 
   while IFS= read -r image; do
     [[ -n "$image" ]] && images+=("$image")
-  done < <(apigene_stack_image_list)
+  done < <(olgene_stack_image_list)
 
-  apigene_banner "Apigene Images"
-  apigene_info "Registry: ${registry}"
-  apigene_info "Engine:   ${APIGENE_RUNTIME}"
+  olgene_banner "OL-Gene Images"
+  olgene_info "Registry: ${registry}"
+  olgene_info "Engine:   ${OLGENE_RUNTIME}"
 
-  apigene_section "Check images"
+  olgene_section "Check images"
   for image in "${images[@]}"; do
-    if ! apigene_ctr image inspect "$image" >/dev/null 2>&1; then
-      apigene_err "Image not found: ${image}"
-      apigene_info "Run ./apigene images load first, with the same image settings in .env"
+    if ! olgene_ctr image inspect "$image" >/dev/null 2>&1; then
+      olgene_err "Image not found: ${image}"
+      olgene_info "Run ./olgene images load first, with the same image settings in .env"
       return 1
     fi
   done
-  apigene_ok "Images ready"
+  olgene_ok "Images ready"
 
-  apigene_section "Push images"
+  olgene_section "Push images"
   for image in "${images[@]}"; do
     target="${registry}/${image##*/}"
-    apigene_step "${image} -> ${target}"
-    apigene_ctr tag "$image" "$target" || return 1
-    if ! apigene_ctr push "$target"; then
-      apigene_err "Push failed: ${target}"
-      apigene_info "Log in first: ${APIGENE_RUNTIME} login ${registry%%/*}"
+    olgene_step "${image} -> ${target}"
+    olgene_ctr tag "$image" "$target" || return 1
+    if ! olgene_ctr push "$target"; then
+      olgene_err "Push failed: ${target}"
+      olgene_info "Log in first: ${OLGENE_RUNTIME} login ${registry%%/*}"
       return 1
     fi
   done
-  apigene_ok "Images pushed to ${registry}"
-  apigene_info "Helm: ${C_BOLD}--set images.mirror=${registry}${C_RESET}"
+  olgene_ok "Images pushed to ${registry}"
+  olgene_info "Helm: ${C_BOLD}--set images.mirror=${registry}${C_RESET}"
 }
 
 cmd_images() {
@@ -360,7 +360,7 @@ cmd_images() {
 
   case "$sub" in
     ""|-h|--help)
-      apigene_banner "Apigene Images"
+      olgene_banner "OL-Gene Images"
       cmd_images_usage
       if [[ -z "$sub" ]]; then
         return 1
@@ -380,7 +380,7 @@ cmd_images() {
       cmd_images_push "$@"
       ;;
     *)
-      apigene_err "Unknown images command: $sub"
+      olgene_err "Unknown images command: $sub"
       echo ""
       cmd_images_usage
       return 1

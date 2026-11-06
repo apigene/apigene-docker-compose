@@ -19,11 +19,11 @@ Run the full [Apigene](https://apigene.ai) platform locally or on-prem with Dock
 curl -fsSL https://raw.githubusercontent.com/apigene/apigene-docker-compose/main/install.sh | bash
 ```
 
-This downloads the stack into the current directory (no Git required), creates `.env`, generates an auth secret, pulls images, and starts the stack (`./apigene setup --pull`). The directory must be empty, or already be an Apigene install. Re-running the installer there updates the files and keeps `.env`.
+This downloads the stack into the current directory (no Git required), creates `.env`, generates an auth secret, pulls images, and starts the stack (`./olgene setup --pull`). The directory must be empty, or already be an Apigene install. Re-running the installer there updates the files and keeps `.env`.
 
 ### Release bundle
 
-An on-prem release is `ol-gene-<version>-linux-amd64.tar.gz` plus a `.sha256` file. Verify the checksum, unpack, and run `./apigene setup`. That loads `apigene-images.tar.gz` from the unpacked directory and starts without contacting a registry. The customer steps are in `INSTALL.md` inside the archive, next to `sbom/*.cdx.json` (one CycloneDX document per image). `./apigene package <tag>` builds that tarball from a machine that can pull. Syft must be on `PATH`.
+An on-prem release is `ol-gene-<version>-linux-amd64.tar.gz` plus a `.sha256` file. Verify the checksum, unpack, and run `./olgene setup`. That loads `olgene-images.tar.gz` from the unpacked directory and starts without contacting a registry. The customer steps are in `INSTALL.md` inside the archive, next to `sbom/*.cdx.json` (one CycloneDX document per image). `./olgene package <tag>` builds that tarball from a machine that can pull. Syft must be on `PATH`.
 
 When it finishes, open **http://localhost:8080** (or your `APIGENE_PORT`).
 
@@ -33,7 +33,7 @@ Optional environment variables for the installer:
 |----------|---------|-------------|
 | `APIGENE_INSTALL_DIR` | current directory | Where to unpack the stack. The directory must be empty or already an Apigene install |
 | `APIGENE_BRANCH` | `main` | Branch archive to download |
-| `APIGENE_LINK_CLI` | `0` | Set to `1` to symlink `apigene` into `~/.local/bin` |
+| `APIGENE_LINK_CLI` | `0` | Set to `1` to symlink `olgene` into `~/.local/bin` |
 
 ### Manual install
 
@@ -42,10 +42,10 @@ git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 
 chmod +x apigene
-./apigene setup --pull
+./olgene setup --pull
 ```
 
-`./apigene setup --pull` creates `.env` from `.env.example`, generates `AUTH_APIGENE_SECRET_KEY` if needed, pulls images, and starts services. `./apigene setup` without `--pull` loads `apigene-images.tar.gz` instead.
+`./olgene setup --pull` creates `.env` from `.env.example`, generates `AUTH_APIGENE_SECRET_KEY` if needed, pulls images, and starts services. `./olgene setup` without `--pull` loads `olgene-images.tar.gz` instead.
 
 Open **http://localhost:8080** by default, or whatever port you set in `APIGENE_PORT`.
 
@@ -60,13 +60,13 @@ Verify everything is healthy:
 
 ```bash
 cd ~/apigene   # or your install directory
-./apigene test
+./olgene test
 ./tests/integration.sh   # broad API integration suite, from a git clone
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` only if you are configuring manually — `./apigene setup` and `./apigene setup --pull` do this for you.
+Copy `.env.example` to `.env` only if you are configuring manually — `./olgene setup` and `./olgene setup --pull` do this for you.
 
 ### Local development (default)
 
@@ -121,7 +121,7 @@ Each Apigene image is `registry` + `name` + `tag`. MongoDB and Redis are unchang
 | `APIGENE_*_IMAGE_NAME` | published name | Optional name override (`apigene-backend`, `apigene-copilot`, `apigene-mcp-gw`, `apigene-nginx`) |
 | `APIGENE_IMAGE_PLATFORM` | `linux/amd64` | Set `linux/arm64` for images built on Apple Silicon |
 
-`./apigene` copies `APIGENE_IMAGE_TAG` onto any per-service tag that is unset, and adds a trailing slash when `APIGENE_IMAGE_REGISTRY` is missing one. An empty registry is kept empty.
+`./olgene` copies `APIGENE_IMAGE_TAG` onto any per-service tag that is unset, and adds a trailing slash when `APIGENE_IMAGE_REGISTRY` is missing one. An empty registry is kept empty.
 
 **Public ECR, one tag for every service:**
 
@@ -155,7 +155,7 @@ APIGENE_IMAGE_TAG=5.5.0
 APIGENE_BACKEND_IMAGE_TAG=6.0.0
 ```
 
-Compose then uses `apigene-backend:6.0.0`, `apigene-copilot:5.5.0`, `apigene-mcp-gw:5.5.0`, and `apigene-nginx:5.5.0`. `./apigene setup --pull` and `./apigene start --pull` still pull MongoDB and Redis, and leave those four images on the machine when the registry is empty.
+Compose then uses `apigene-backend:6.0.0`, `apigene-copilot:5.5.0`, `apigene-mcp-gw:5.5.0`, and `apigene-nginx:5.5.0`. `./olgene setup --pull` and `./olgene start --pull` still pull MongoDB and Redis, and leave those four images on the machine when the registry is empty.
 
 On Apple Silicon, images you build locally are `linux/arm64`. Set `APIGENE_IMAGE_PLATFORM=linux/arm64` for that install. The published ECR images are `linux/amd64`.
 
@@ -175,19 +175,19 @@ APIGENE_BACKEND_IMAGE_TAG=6.0.0
 | `DATABASE_ENV` | Optional | Logical name to isolate data (default `local`) |
 | `MONGO_HOST_PORT` | Optional | Host port for MongoDB (default `27017`) |
 | `CACHE_ENABLED` | Optional | Enable Redis-backed caching (default `True`) |
-| `AUTH_APIGENE_SECRET_KEY` | Production | Auto-generated on first `./apigene setup`; change before production |
+| `AUTH_APIGENE_SECRET_KEY` | Production | Auto-generated on first `./olgene setup`; change before production |
 
 MongoDB and Redis connection settings are applied automatically. You usually do not need to set `MONGO_DB_URL` or `REDIS_*` unless you use external databases.
 
 ### Authentication secret
 
-`./apigene setup` generates `AUTH_APIGENE_SECRET_KEY` automatically for local installs. For production or if you set it manually:
+`./olgene setup` generates `AUTH_APIGENE_SECRET_KEY` automatically for local installs. For production or if you set it manually:
 
 ```bash
 openssl rand -hex 32
 ```
 
-Paste the output into `.env` as `AUTH_APIGENE_SECRET_KEY=...`, then restart: `./apigene stop && ./apigene start`.
+Paste the output into `.env` as `AUTH_APIGENE_SECRET_KEY=...`, then restart: `./olgene stop && ./olgene start`.
 
 ### Using a different local port
 
@@ -197,7 +197,7 @@ Change `APIGENE_PORT` only:
 APIGENE_PORT=9090
 ```
 
-Then restart: `./apigene stop && ./apigene start` → `http://localhost:9090`.
+Then restart: `./olgene stop && ./olgene start` → `http://localhost:9090`.
 
 ### Authentication
 
@@ -265,7 +265,7 @@ ALLOWED_ORIGINS=http://localhost:8080,https://hub.example.com
 
 Podman runs this same Compose file through Docker Compose v2. `podman compose` (Podman 4.7+) selects the `docker-compose` provider and points it at the Podman API. Install that provider as `docker-compose` on `PATH`.
 
-Start the API socket before `./apigene setup`.
+Start the API socket before `./olgene setup`.
 
 Rootless (socket `$XDG_RUNTIME_DIR/podman/podman.sock`):
 
@@ -288,30 +288,30 @@ To point Compose at a specific socket, set `DOCKER_HOST` (for example `unix:///r
 
 ## Air-gapped install
 
-The release bundle is the air-gapped install. Verify `ol-gene-<version>-linux-amd64.tar.gz.sha256`, unpack, and run `./apigene setup`.
+The release bundle is the air-gapped install. Verify `ol-gene-<version>-linux-amd64.tar.gz.sha256`, unpack, and run `./olgene setup`.
 
-`./apigene package <tag>` builds that bundle on a machine that can reach the registries. The image archive inside it is a gzip-compressed Docker archive, so a file saved by Docker loads into Podman, and a file saved by Podman loads into Docker.
+`./olgene package <tag>` builds that bundle on a machine that can reach the registries. The image archive inside it is a gzip-compressed Docker archive, so a file saved by Docker loads into Podman, and a file saved by Podman loads into Docker.
 
-To save only the image archive, pin the tags in `.env` and run `./apigene images save`. It pulls `linux/amd64` unless `APIGENE_IMAGE_PLATFORM` is set, including MongoDB (`mongo:7`) and Redis (`redis:7-alpine`).
+To save only the image archive, pin the tags in `.env` and run `./olgene images save`. It pulls `linux/amd64` unless `APIGENE_IMAGE_PLATFORM` is set, including MongoDB (`mongo:7`) and Redis (`redis:7-alpine`).
 
 ```bash
-./apigene images save
+./olgene images save
 ```
 
-That writes `apigene-images.tar.gz` in the current directory. Pass another path to change it: `./apigene images save /tmp/apigene-images.tar.gz`. `./apigene images load /tmp/apigene-images.tar.gz` loads a file that is not in the current directory. Keep the same `APIGENE_IMAGE_REGISTRY` and tags in `.env` that were used when the archive was saved. The loaded names have to match those settings.
+That writes `olgene-images.tar.gz` in the current directory. Pass another path to change it: `./olgene images save /tmp/olgene-images.tar.gz`. `./olgene images load /tmp/olgene-images.tar.gz` loads a file that is not in the current directory. Keep the same `APIGENE_IMAGE_REGISTRY` and tags in `.env` that were used when the archive was saved. The loaded names have to match those settings.
 
-`./apigene setup` loads `apigene-images.tar.gz` and does not contact the registry. `./apigene setup --pull` and `./apigene start --pull` do. On the air-gapped machine, unpack the release bundle and run `./apigene setup`.
+`./olgene setup` loads `olgene-images.tar.gz` and does not contact the registry. `./olgene setup --pull` and `./olgene start --pull` do. On the air-gapped machine, unpack the release bundle and run `./olgene setup`.
 
 Chat needs a model endpoint this host can reach. A cloud LLM provider is unreachable from an air-gapped network.
 
 ### Private registry for Kubernetes
 
-`./apigene images load` puts images in the local engine, which Kubernetes nodes cannot use. To install the Helm chart without public registries, push the loaded images to your own registry. Log in to it first:
+`./olgene images load` puts images in the local engine, which Kubernetes nodes cannot use. To install the Helm chart without public registries, push the loaded images to your own registry. Log in to it first:
 
 ```bash
-./apigene images load
+./olgene images load
 docker login registry.example.com
-./apigene images push registry.example.com/apigene
+./olgene images push registry.example.com/apigene
 ```
 
 Images are published under their short names, such as `registry.example.com/apigene/mongo:7`. The archive also holds the chart's init image. Then set `images.mirror=registry.example.com/apigene` and the same `imageTag` in the chart.
@@ -319,20 +319,20 @@ Images are published under their short names, such as `registry.example.com/apig
 ## CLI reference
 
 ```bash
-./apigene setup              # Load apigene-images.tar.gz, create .env, start
-./apigene setup --pull       # Create .env, pull images, start
-./apigene start              # Start all services
-./apigene start --pull       # Pull images, then start (skips local name:tag images)
-./apigene images save        # Pull stack images into apigene-images.tar.gz
-./apigene images load        # Load apigene-images.tar.gz into Docker or Podman
-./apigene package <tag>      # Build ol-gene-<tag>-linux-amd64.tar.gz, its .sha256, and sbom/*.cdx.json
-./scripts/test-onprem-bundle.sh <tag>  # Install that tarball and run ./apigene test
-./apigene test               # Run health checks on the full stack
-./apigene logs               # Tail colored logs
-./apigene logs backend       # Tail a specific service
-./apigene logs --raw         # Plain compose output
-./apigene stop               # Stop (keeps Mongo data)
-./apigene stop --volumes     # Stop and delete Mongo data
+./olgene setup              # Load olgene-images.tar.gz, create .env, start
+./olgene setup --pull       # Create .env, pull images, start
+./olgene start              # Start all services
+./olgene start --pull       # Pull images, then start (skips local name:tag images)
+./olgene images save        # Pull stack images into olgene-images.tar.gz
+./olgene images load        # Load olgene-images.tar.gz into Docker or Podman
+./olgene package <tag>      # Build ol-gene-<tag>-linux-amd64.tar.gz, its .sha256, and sbom/*.cdx.json
+./scripts/test-onprem-bundle.sh <tag>  # Install that tarball and run ./olgene test
+./olgene test               # Run health checks on the full stack
+./olgene logs               # Tail colored logs
+./olgene logs backend       # Tail a specific service
+./olgene logs --raw         # Plain compose output
+./olgene stop               # Stop (keeps Mongo data)
+./olgene stop --volumes     # Stop and delete Mongo data
 ```
 
 ## Connect MCP (Cursor, Claude, etc.)
@@ -388,22 +388,22 @@ Health endpoints (replace `<APIGENE_PORT>` with your port, default `8080`):
 `APIGENE_IMAGE_TAG=latest` tracks the current public ECR release. Pull and restart with:
 
 ```bash
-./apigene start --pull
+./olgene start --pull
 ```
 
 Pin a release with `APIGENE_IMAGE_TAG` (for example `5.5.0`). Set `APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, or `APIGENE_NGINX_IMAGE_TAG` when one service should differ. See [Container images](#container-images) for a backend `6.0.0` / other services `5.5.0` example, a private registry, and images already on the machine.
 
-An existing `.env` without `APIGENE_IMAGE_REGISTRY` keeps pulling `public.ecr.aws/apigene/`. The next `./apigene setup` adds the key from `.env.example`.
+An existing `.env` without `APIGENE_IMAGE_REGISTRY` keeps pulling `public.ecr.aws/apigene/`. The next `./olgene setup` adds the key from `.env.example`.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
-| Docker not running | Start Docker Desktop, then re-run `./apigene setup` or `./apigene start` |
-| `.env` missing | Run `./apigene setup` from a release bundle, or `./apigene setup --pull` from a git clone |
-| Archive not found | Unpack the release so `apigene-images.tar.gz` is next to `./apigene`, or pass that file's path |
-| Backend unhealthy | Check `./apigene logs backend` — confirm MongoDB/Redis are healthy; wait 1–2 min on first boot |
-| Mongo exits immediately (code 132) | The VM CPU does not expose AVX. MongoDB 7 requires it on x86_64. Set the hypervisor CPU to host passthrough, reboot, and confirm `avx` is in `grep -m1 '^flags' /proc/cpuinfo`. `./apigene test` reports this directly. |
+| Docker not running | Start Docker Desktop, then re-run `./olgene setup` or `./olgene start` |
+| `.env` missing | Run `./olgene setup` from a release bundle, or `./olgene setup --pull` from a git clone |
+| Archive not found | Unpack the release so `olgene-images.tar.gz` is next to `./olgene`, or pass that file's path |
+| Backend unhealthy | Check `./olgene logs backend` — confirm MongoDB/Redis are healthy; wait 1–2 min on first boot |
+| Mongo exits immediately (code 132) | The VM CPU does not expose AVX. MongoDB 7 requires it on x86_64. Set the hypervisor CPU to host passthrough, reboot, and confirm `avx` is in `grep -m1 '^flags' /proc/cpuinfo`. `./olgene test` reports this directly. |
 | UI loads but API fails | Ensure the URL in your browser matches `NEXT_PUBLIC_SERVER_BASE_URL` (or derived `http://localhost:$APIGENE_PORT`) |
 | MCP tools fail with ECONNREFUSED | Restart mcp-gw — `APIGENE_URL` is set automatically to `http://nginx` |
 | Port already in use | Change `APIGENE_PORT` in `.env` and restart |
@@ -411,7 +411,7 @@ An existing `.env` without `APIGENE_IMAGE_REGISTRY` keeps pulling `public.ecr.aw
 | Slow on Apple Silicon | Published images are `linux/amd64` and run under emulation. Locally built arm64 images need `APIGENE_IMAGE_PLATFORM=linux/arm64` |
 | Directory already has other files | `cd` into an empty directory and run the installer again |
 
-Run `./apigene test` for a full diagnostic report.
+Run `./olgene test` for a full diagnostic report.
 
 ## Support
 

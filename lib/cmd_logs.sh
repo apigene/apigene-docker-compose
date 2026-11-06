@@ -11,12 +11,12 @@ cmd_logs() {
         raw=true
         ;;
       -h|--help)
-        apigene_banner "Apigene Logs"
-        echo "Usage: apigene logs [options] [services...]"
+        olgene_banner "OL-Gene Logs"
+        echo "Usage: ./olgene logs [options] [services...]"
         echo ""
-        echo "  apigene logs                     Tail default services (formatted)"
-        echo "  apigene logs backend nginx       Tail specific services"
-        echo "  apigene logs --raw               Plain compose output"
+        echo "  ./olgene logs                     Tail default services (formatted)"
+        echo "  ./olgene logs backend nginx       Tail specific services"
+        echo "  ./olgene logs --raw               Plain compose output"
         echo ""
         echo "Default services: backend copilot nginx mcp-gw backend-worker"
         echo ""
@@ -32,7 +32,7 @@ cmd_logs() {
         break
         ;;
       -*)
-        apigene_err "Unknown option: $1"
+        olgene_err "Unknown option: $1"
         return 1
         ;;
       *)
@@ -46,26 +46,26 @@ cmd_logs() {
     services=("${args[@]}")
   fi
 
-  apigene_section "Logs"
-  apigene_info "Services: ${services[*]}"
+  olgene_section "Logs"
+  olgene_info "Services: ${services[*]}"
   if [[ "$raw" == "true" ]]; then
-    apigene_info "Mode: raw (no formatting)"
+    olgene_info "Mode: raw (no formatting)"
   else
-    apigene_info "Mode: colored ${C_DIM}(use --raw for plain output)${C_RESET}"
+    olgene_info "Mode: colored ${C_DIM}(use --raw for plain output)${C_RESET}"
   fi
   echo ""
 
-  apigene_runtime_init || return 1
+  olgene_runtime_init || return 1
 
   if [[ "$raw" == "true" ]]; then
-    exec "${APIGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}"
+    exec "${OLGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}"
   fi
 
   if command -v stdbuf >/dev/null 2>&1; then
-    exec stdbuf -oL "${APIGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}" \
+    exec stdbuf -oL "${OLGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}" \
       | awk -f "$APIGENE_ROOT/lib/format_logs.awk"
   fi
 
-  exec "${APIGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}" \
+  exec "${OLGENE_COMPOSE[@]}" logs -f --tail=100 "${services[@]}" \
     | awk -f "$APIGENE_ROOT/lib/format_logs.awk"
 }

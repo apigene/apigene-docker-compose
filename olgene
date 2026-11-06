@@ -23,34 +23,34 @@ source "$APIGENE_ROOT/lib/cmd_images.sh"
 # shellcheck disable=SC1091
 source "$APIGENE_ROOT/lib/cmd_package.sh"
 
-apigene_usage() {
-  apigene_banner "Apigene CLI"
+olgene_usage() {
+  olgene_banner "OL-Gene CLI"
   cat <<EOF
-Usage: ./apigene <command> [options]
+Usage: ./olgene <command> [options]
 
 Commands:
-  setup [--pull]     Load apigene-images.tar.gz and start. --pull uses the registry
+  setup [--pull]     Load olgene-images.tar.gz and start. --pull uses the registry
   start [--pull]     Start all services
   stop [--volumes]   Stop services (optionally delete Mongo data)
   test               Run health checks on the full stack
   logs [services]    Tail colored logs (add --raw for plain output)
-  images save        Pull the stack images and write apigene-images.tar.gz
-  images load        Load apigene-images.tar.gz into Docker or Podman
+  images save        Pull the stack images and write olgene-images.tar.gz
+  images load        Load olgene-images.tar.gz into Docker or Podman
   images push        Push loaded images to a private registry
   package <tag>      Build ol-gene-<tag>-linux-amd64.tar.gz for a release
 
 Examples:
-  ./apigene setup
-  ./apigene setup --pull
-  ./apigene start
-  ./apigene start --pull
-  ./apigene test
-  ./apigene stop
-  ./apigene stop --volumes
-  ./apigene logs backend
-  ./apigene images save
-  ./apigene images load
-  ./apigene package 5.5.1
+  ./olgene setup
+  ./olgene setup --pull
+  ./olgene start
+  ./olgene start --pull
+  ./olgene test
+  ./olgene stop
+  ./olgene stop --volumes
+  ./olgene logs backend
+  ./olgene images save
+  ./olgene images load
+  ./olgene package 5.5.1
 
 Options:
   -h, --help         Show help for a command or this overview
@@ -62,7 +62,7 @@ main() {
 
   case "$cmd" in
     ""|help|-h|--help)
-      apigene_usage
+      olgene_usage
       ;;
     setup)
       shift
@@ -95,9 +95,9 @@ main() {
       cmd_package "$@"
       ;;
     *)
-      apigene_err "Unknown command: $cmd"
+      olgene_err "Unknown command: $cmd"
       echo ""
-      apigene_info "Run ${C_BOLD}./apigene --help${C_RESET} to see available commands."
+      olgene_info "Run ${C_BOLD}./olgene --help${C_RESET} to see available commands."
       exit 1
       ;;
   esac

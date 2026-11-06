@@ -1,6 +1,6 @@
 # OL Gene __OL_GENE_VERSION__
 
-Install OL Gene on one host from this bundle. The command is `./apigene`. A CycloneDX SBOM for each image is in `sbom/`.
+Install OL Gene on one host from this bundle. The command is `./olgene`. A CycloneDX SBOM for each image is in `sbom/`.
 
 ## Host
 
@@ -36,17 +36,17 @@ The checksum file is next to the archive. Verify it, then unpack.
 sha256sum -c ol-gene-__OL_GENE_VERSION__-linux-amd64.tar.gz.sha256
 tar xzf ol-gene-__OL_GENE_VERSION__-linux-amd64.tar.gz
 cd ol-gene-__OL_GENE_VERSION__
-./apigene setup
+./olgene setup
 ```
 
 On macOS the check is `shasum -a 256 -c ol-gene-__OL_GENE_VERSION__-linux-amd64.tar.gz.sha256`.
 
-`./apigene setup` loads `apigene-images.tar.gz`, generates an auth secret for this host, and starts the stack. It does not contact a registry.
+`./olgene setup` loads `olgene-images.tar.gz`, generates an auth secret for this host, and starts the stack. It does not contact a registry.
 
 ## Open OL Gene
 
 ```bash
-./apigene test
+./olgene test
 ```
 
 Open `http://<host>:8080`. Create the first email and password. That person administers this installation. With no license file, the trial is 30 days from that first organization.
@@ -56,21 +56,21 @@ Add one model key under **Settings → Models** before using chat or agents.
 ## Day to day
 
 ```bash
-./apigene start
-./apigene stop
-./apigene logs
-./apigene test
+./olgene start
+./olgene stop
+./olgene logs
+./olgene test
 ```
 
-`./apigene stop` keeps the data. `./apigene stop --volumes` deletes it.
+`./olgene stop` keeps the data. `./olgene stop --volumes` deletes it.
 
 ## Upgrade
 
 Unpack the new release. Keep this directory’s `.env` and the MongoDB volume. Load the new image archive and start:
 
 ```bash
-./apigene images load apigene-images.tar.gz
-./apigene start
+./olgene images load olgene-images.tar.gz
+./olgene start
 ```
 
 Set `APIGENE_IMAGE_TAG` in `.env` to the new version before starting, so Compose uses the images you just loaded.
@@ -79,8 +79,8 @@ Set `APIGENE_IMAGE_TAG` in `.env` to the new version before starting, so Compose
 
 | Problem | What to do |
 |---------|------------|
-| Docker is not running | Start Docker Desktop or the Podman socket, then run `./apigene setup` again |
-| Archive not found | Run `./apigene setup` from the unpacked `ol-gene-__OL_GENE_VERSION__` directory |
+| Docker is not running | Start Docker Desktop or the Podman socket, then run `./olgene setup` again |
+| Archive not found | Run `./olgene setup` from the unpacked `ol-gene-__OL_GENE_VERSION__` directory |
 | Mongo exits 132 | The CPU does not expose AVX. Set the hypervisor CPU to host passthrough and reboot |
-| Port 8080 is taken | Set `APIGENE_PORT` in `.env` and run `./apigene start` |
+| Port 8080 is taken | Set `APIGENE_PORT` in `.env` and run `./olgene start` |
 | UI loads and the API fails | The browser URL must match `NEXT_PUBLIC_SERVER_BASE_URL`, or `http://localhost:8080` when that variable is unset |

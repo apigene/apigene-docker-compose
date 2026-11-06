@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copy a process's stdout/stderr into /var/log/apigene/<service>.jsonl and
+# Copy a process's stdout/stderr into /var/log/olgene/<service>.jsonl and
 # leave the container's original stdout in place, then exec the real command
 # so it stays PID 1.
 #
@@ -20,7 +20,7 @@ fi
 
 here=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 writer="${here}/log-writer.sh"
-dir="${LOG_DIR:-/var/log/apigene}"
+dir="${LOG_DIR:-/var/log/olgene}"
 file="${dir}/${svc}.jsonl"
 pipe="/tmp/apigene-log-${svc}"
 

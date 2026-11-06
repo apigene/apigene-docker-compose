@@ -6,10 +6,10 @@ cmd_test() {
   local PASS=0 FAIL=0 WARN=0 START_TS
 
   PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
-  BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${PORT}")}"
+  BASE_URL="${NEXT_PUBLIC_SERVER_BASE_URL:-$(olgene_public_base_url "${PORT}")}"
 
   if [[ -f .env ]]; then
-    apigene_load_env
+    olgene_load_env
     PORT="${APIGENE_PORT}"
     BASE_URL="${APIGENE_BASE_URL}"
   fi
@@ -21,14 +21,14 @@ cmd_test() {
   )
   START_TS="$(date +%s)"
 
-  pass() { apigene_ok "$1"; PASS=$((PASS + 1)); }
-  fail() { apigene_err "$1"; FAIL=$((FAIL + 1)); }
-  warn() { apigene_warn "$1"; WARN=$((WARN + 1)); }
-  info() { apigene_info "$1"; }
-  section() { apigene_section "$1"; }
+  pass() { olgene_ok "$1"; PASS=$((PASS + 1)); }
+  fail() { olgene_err "$1"; FAIL=$((FAIL + 1)); }
+  warn() { olgene_warn "$1"; WARN=$((WARN + 1)); }
+  info() { olgene_info "$1"; }
+  section() { olgene_section "$1"; }
 
   container_id() {
-    apigene_service_id "$1" 2>/dev/null || true
+    olgene_service_id "$1" 2>/dev/null || true
   }
 
   check_container_running() {
@@ -38,8 +38,8 @@ cmd_test() {
       fail "$service — container not found (is the stack running?)"
       return
     fi
-    state="$(apigene_ctr inspect -f '{{.State.Status}}' "$id")"
-    started="$(apigene_ctr inspect -f '{{.State.StartedAt}}' "$id")"
+    state="$(olgene_ctr inspect -f '{{.State.Status}}' "$id")"
+    started="$(olgene_ctr inspect -f '{{.State.StartedAt}}' "$id")"
     if [[ "$state" == "running" ]]; then
       pass "$service — running (since ${started})"
     else
@@ -54,7 +54,7 @@ cmd_test() {
       fail "$service — health check skipped (container missing)"
       return
     fi
-    health="$(apigene_ctr inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id")"
+    health="$(olgene_ctr inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id")"
     case "$health" in
       healthy) pass "$service — health: healthy" ;;
       none) info "$service — no healthcheck defined" ;;
@@ -126,7 +126,7 @@ cmd_test() {
     mongo_id="$(container_id mongo)"
     mongo_exit=""
     if [[ -n "$mongo_id" ]]; then
-      mongo_exit="$(apigene_ctr inspect -f '{{.State.ExitCode}}' "$mongo_id" 2>/dev/null || true)"
+      mongo_exit="$(olgene_ctr inspect -f '{{.State.ExitCode}}' "$mongo_id" 2>/dev/null || true)"
     fi
     detail="MongoDB 7 exits with code 132 until the VM CPU includes AVX. Set the hypervisor CPU to host passthrough, reboot, and confirm avx is present: grep -m1 '^flags' /proc/cpuinfo"
     if [[ "$mongo_exit" == "132" ]]; then
@@ -142,7 +142,7 @@ cmd_test() {
       fail "$label — container missing"
       return
     fi
-    if apigene_ctr exec "$cid" sh -c "
+    if olgene_ctr exec "$cid" sh -c "
       if command -v python >/dev/null 2>&1; then
         python -c \"import socket; s=socket.create_connection(('$host', $port), 3); s.close()\"
       elif command -v nc >/dev/null 2>&1; then
@@ -159,10 +159,10 @@ cmd_test() {
     fi
   }
 
-  apigene_banner "Apigene Test"
+  olgene_banner "OL-Gene Test"
   info "Base URL:   ${C_BOLD}${BASE_URL}${C_RESET}"
   if [[ -n "${APIGENE_BACKEND_IMAGE:-}" ]]; then
-    apigene_print_images
+    olgene_print_images
   else
     info "Image tag:  ${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
   fi
@@ -170,14 +170,14 @@ cmd_test() {
   info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 
   section "Prerequisites"
-  if apigene_runtime_init; then
-    pass "container engine: ${APIGENE_RUNTIME} ($(apigene_ctr version --format '{{.Client.Version}}' 2>/dev/null || apigene_ctr --version | head -1))"
-    pass "compose available ($(apigene_compose version --short 2>/dev/null || apigene_compose version | head -1))"
+  if olgene_runtime_init; then
+    pass "container engine: ${OLGENE_RUNTIME} ($(olgene_ctr version --format '{{.Client.Version}}' 2>/dev/null || olgene_ctr --version | head -1))"
+    pass "compose available ($(olgene_compose version --short 2>/dev/null || olgene_compose version | head -1))"
   else
     fail "container engine not available"
   fi
   command -v curl >/dev/null 2>&1 && pass "curl available" || fail "curl not found"
-  [[ -f .env ]] && pass ".env file present" || warn ".env file missing — run: ./apigene setup"
+  [[ -f .env ]] && pass ".env file present" || warn ".env file missing — run: ./olgene setup"
 
   section "Configuration"
   curl -fsS --max-time 5 "${BASE_URL}/nginx-health" >/dev/null 2>&1 \
@@ -196,9 +196,9 @@ cmd_test() {
   local backend_id redis_host mongo_url tenant_name copilot_id public_url mcp_gw_id apigene_url clerk_pk
   backend_id="$(container_id backend)"
   if [[ -n "$backend_id" ]]; then
-    redis_host="$(apigene_ctr exec "$backend_id" printenv REDIS_HOST 2>/dev/null || true)"
-    mongo_url="$(apigene_ctr exec "$backend_id" printenv MONGO_DB_URL 2>/dev/null || true)"
-    tenant_name="$(apigene_ctr exec "$backend_id" printenv TENANT_NAME 2>/dev/null || true)"
+    redis_host="$(olgene_ctr exec "$backend_id" printenv REDIS_HOST 2>/dev/null || true)"
+    mongo_url="$(olgene_ctr exec "$backend_id" printenv MONGO_DB_URL 2>/dev/null || true)"
+    tenant_name="$(olgene_ctr exec "$backend_id" printenv TENANT_NAME 2>/dev/null || true)"
     [[ "$redis_host" == "redis" ]] && pass "backend REDIS_HOST=redis" || fail "backend REDIS_HOST='${redis_host:-<unset>}' (expected redis)"
     [[ "$mongo_url" == *"mongo:27017"* ]] && pass "backend MONGO_DB_URL points at bundled mongo" || fail "backend MONGO_DB_URL unexpected: ${mongo_url:-<unset>}"
     [[ -n "$tenant_name" ]] && pass "backend TENANT_NAME=${tenant_name}" || warn "backend TENANT_NAME is unset"
@@ -206,14 +206,14 @@ cmd_test() {
 
   copilot_id="$(container_id copilot)"
   if [[ -n "$copilot_id" ]]; then
-    public_url="$(apigene_ctr exec "$copilot_id" printenv NEXT_PUBLIC_SERVER_BASE_URL 2>/dev/null || true)"
+    public_url="$(olgene_ctr exec "$copilot_id" printenv NEXT_PUBLIC_SERVER_BASE_URL 2>/dev/null || true)"
     [[ -n "$public_url" ]] && pass "copilot NEXT_PUBLIC_SERVER_BASE_URL=${public_url}" || warn "copilot NEXT_PUBLIC_SERVER_BASE_URL unset"
   fi
 
   mcp_gw_id="$(container_id mcp-gw)"
   if [[ -n "$mcp_gw_id" ]]; then
-    apigene_url="$(apigene_ctr exec "$mcp_gw_id" printenv APIGENE_URL 2>/dev/null || true)"
-    clerk_pk="$(apigene_ctr exec "$mcp_gw_id" printenv CLERK_PUBLISHABLE_KEY 2>/dev/null || true)"
+    apigene_url="$(olgene_ctr exec "$mcp_gw_id" printenv APIGENE_URL 2>/dev/null || true)"
+    clerk_pk="$(olgene_ctr exec "$mcp_gw_id" printenv CLERK_PUBLISHABLE_KEY 2>/dev/null || true)"
     [[ "$apigene_url" == "http://nginx" ]] && pass "mcp-gw APIGENE_URL=http://nginx" || fail "mcp-gw APIGENE_URL='${apigene_url:-<unset>}' (expected http://nginx)"
     if [[ "${NEXT_PUBLIC_AUTH_PROVIDER:-}" == "clerk" ]]; then
       [[ -n "$clerk_pk" ]] && pass "mcp-gw CLERK_PUBLISHABLE_KEY is set" || warn "mcp-gw CLERK_PUBLISHABLE_KEY unset — MCP auth may fail"
@@ -233,11 +233,11 @@ cmd_test() {
   redis_id="$(container_id redis)"
   mongo_id="$(container_id mongo)"
   check_cpu_avx
-  [[ -n "$redis_id" ]] && apigene_ctr exec "$redis_id" redis-cli ping 2>/dev/null | grep -q PONG && pass "redis — responds to PING" || fail "redis — PING failed"
-  [[ -n "$mongo_id" ]] && apigene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1 && pass "mongo — responds to ping" || fail "mongo — ping failed"
+  [[ -n "$redis_id" ]] && olgene_ctr exec "$redis_id" redis-cli ping 2>/dev/null | grep -q PONG && pass "redis — responds to PING" || fail "redis — PING failed"
+  [[ -n "$mongo_id" ]] && olgene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1 && pass "mongo — responds to ping" || fail "mongo — ping failed"
   # Docker Compose names this apigene_mongo_data. podman-compose 1.0.3
   # ignores the project name and prefixes the checkout directory instead.
-  mongo_vol="$(apigene_ctr volume ls --format '{{.Name}}' 2>/dev/null | grep -E '(^|_)mongo_data$' | head -1 || true)"
+  mongo_vol="$(olgene_ctr volume ls --format '{{.Name}}' 2>/dev/null | grep -E '(^|_)mongo_data$' | head -1 || true)"
   [[ -n "$mongo_vol" ]] && pass "mongo data volume exists (${mongo_vol})" || warn "mongo data volume not found"
 
   section "Service connectivity"
@@ -253,33 +253,33 @@ cmd_test() {
 
   # Nginx must listen on APIGENE_PORT in-container (Copilot uses that URL server-side).
   if [[ -n "$nginx_id" ]]; then
-    if apigene_ctr exec "$nginx_id" sh -c "wget -q -O - http://127.0.0.1:${PORT}/nginx-health >/dev/null 2>&1"; then
+    if olgene_ctr exec "$nginx_id" sh -c "wget -q -O - http://127.0.0.1:${PORT}/nginx-health >/dev/null 2>&1"; then
       pass "nginx — listening on in-container port ${PORT}"
     else
       fail "nginx — not listening on in-container port ${PORT} (APIGENE_PORT mismatch?)"
     fi
   fi
 
-  [[ -n "$backend_id" ]] && apigene_ctr exec "$backend_id" python -c \
+  [[ -n "$backend_id" ]] && olgene_ctr exec "$backend_id" python -c \
     "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5); assert b'ok' in r.read()" 2>/dev/null \
     && pass "backend — direct /api/health on :8000" || fail "backend — direct /api/health on :8000 failed"
 
-  [[ -n "$backend_id" ]] && apigene_ctr exec "$backend_id" python -c \
+  [[ -n "$backend_id" ]] && olgene_ctr exec "$backend_id" python -c \
     "import os; from pymongo import MongoClient; MongoClient(os.environ['MONGO_DB_URL'], serverSelectionTimeoutMS=5000).admin.command('ping')" 2>/dev/null \
     && pass "backend — MongoDB driver connection" || fail "backend — MongoDB driver connection failed"
 
-  [[ -n "$nginx_id" ]] && apigene_ctr exec "$nginx_id" sh -c \
+  [[ -n "$nginx_id" ]] && olgene_ctr exec "$nginx_id" sh -c \
     'wget -q -O - http://copilot:3000/client-api/version 2>/dev/null | grep -q "\"service\""' \
     && pass "nginx → copilot — /client-api/version on copilot:3000" || fail "nginx → copilot — /client-api/version on copilot:3000 failed"
 
-  [[ -n "$mcp_gw_id" ]] && apigene_ctr exec "$mcp_gw_id" sh -c \
+  [[ -n "$mcp_gw_id" ]] && olgene_ctr exec "$mcp_gw_id" sh -c \
     'wget -q -O - http://127.0.0.1:8001/version 2>/dev/null | grep -q "\"service\""' \
     && pass "mcp-gw — /version on :8001" || fail "mcp-gw — /version on :8001 failed"
 
   # Copilot server-side calls use APIGENE_INTERNAL_BASE_URL when set
   # (http://localhost:$APIGENE_PORT via host-gateway), otherwise the public URL.
   if [[ -n "$copilot_id" && -n "${public_url:-}" ]]; then
-    if apigene_ctr exec "$copilot_id" node -e "
+    if olgene_ctr exec "$copilot_id" node -e "
       const base = (process.env.APIGENE_INTERNAL_BASE_URL || process.env.NEXT_PUBLIC_SERVER_BASE_URL || '').replace(/\\/\$/, '');
       const u = base + '/api/health';
       require('http').get(u, r => {
@@ -367,7 +367,7 @@ if missing or unknown:
 
   if [[ "$FAIL" -gt 0 ]]; then
     echo -e "${C_RED}${C_BOLD}✘ Some checks failed.${C_RESET}"
-    apigene_info "Debug: ${C_BOLD}./apigene logs${C_RESET}"
+    olgene_info "Debug: ${C_BOLD}./olgene logs${C_RESET}"
     return 1
   fi
 

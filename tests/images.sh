@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests for ./apigene images. The container engine is stubbed, so no
+# Unit tests for ./olgene images. The container engine is stubbed, so no
 # images are pulled or pushed.
 set -uo pipefail
 
@@ -22,9 +22,9 @@ MISSING_IMAGE=""
 FAILING_PUSH=""
 trap 'rm -f "$CALLS"' EXIT
 
-apigene_runtime_init() { APIGENE_RUNTIME=docker; }
+olgene_runtime_init() { OLGENE_RUNTIME=docker; }
 
-apigene_ctr() {
+olgene_ctr() {
   echo "$*" >> "$CALLS"
   if [[ "$1 $2" == "image inspect" && "$3" == "$MISSING_IMAGE" ]]; then
     return 1
@@ -53,11 +53,11 @@ reset() {
   FAILING_PUSH=""
 }
 
-apigene_load_env
-TAG="$(apigene_stack_image_list | head -1)"
+olgene_load_env
+TAG="$(olgene_stack_image_list | head -1)"
 TAG="${TAG##*:}"
 
-list="$(apigene_stack_image_list)"
+list="$(olgene_stack_image_list)"
 check "image list has the init image" grep -q '^docker.io/library/busybox:' <<< "$list"
 check "image list has seven images" test "$(wc -l <<< "$list" | tr -d ' ')" = 7
 

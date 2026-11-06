@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deeper stack integration tests beyond ./apigene test smoke checks.
+# Deeper stack integration tests beyond ./olgene test smoke checks.
 # Expects a running stack and a reachable BASE_URL (default: http://localhost:8080).
 set -euo pipefail
 
@@ -19,11 +19,11 @@ WARN=0
 START_TS="$(date +%s)"
 
 if [[ -f .env ]]; then
-  apigene_load_env
+  olgene_load_env
 fi
 
 PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
-BASE_URL="${BASE_URL:-${NEXT_PUBLIC_SERVER_BASE_URL:-$(apigene_public_base_url "${PORT}")}}"
+BASE_URL="${BASE_URL:-${NEXT_PUBLIC_SERVER_BASE_URL:-$(olgene_public_base_url "${PORT}")}}"
 BASE_URL="${BASE_URL%/}"
 
 EMAIL="ci-$(date +%s)@example.com"
@@ -43,11 +43,11 @@ MEMBER_PASSWORD="MemberPass!234"
 CONTEXT_TYPE_ID=""
 INTERACTION_ID=""
 
-pass() { apigene_ok "$1"; PASS=$((PASS + 1)); }
-fail() { apigene_err "$1"; FAIL=$((FAIL + 1)); }
-warn() { apigene_warn "$1"; WARN=$((WARN + 1)); }
-info() { apigene_info "$1"; }
-section() { apigene_section "$1"; }
+pass() { olgene_ok "$1"; PASS=$((PASS + 1)); }
+fail() { olgene_err "$1"; FAIL=$((FAIL + 1)); }
+warn() { olgene_warn "$1"; WARN=$((WARN + 1)); }
+info() { olgene_info "$1"; }
+section() { olgene_section "$1"; }
 
 json_field() {
   local json="$1" field="$2"
@@ -122,17 +122,17 @@ raise SystemExit(1)
   fi
 }
 
-apigene_banner "Apigene Integration Tests"
+olgene_banner "OL-Gene Integration Tests"
 info "Base URL: ${C_BOLD}${BASE_URL}${C_RESET}"
 info "Org:      ${ORG_NAME}"
 info "Email:    ${EMAIL}"
 
 section "Compose validation"
 # podman-compose 1.0.x has no `config` subcommand. `up` already parsed the file.
-if apigene_compose_is_podman_compose_v1; then
+if olgene_compose_is_podman_compose_v1; then
   info "compose config skipped (podman-compose 1.0.x has no config command)"
-elif apigene_runtime_init && apigene_compose config -q >/dev/null 2>&1; then
-  pass "compose config is valid (${APIGENE_RUNTIME})"
+elif olgene_runtime_init && olgene_compose config -q >/dev/null 2>&1; then
+  pass "compose config is valid (${OLGENE_RUNTIME})"
 else
   fail "compose config failed"
 fi
@@ -505,7 +505,7 @@ else
     assert_upstream_ip_optional "getMyIpInfo (agent)" "$HTTP_BODY"
   fi
 
-  # Projection path still exercises Apigene; live projected fields depend on upstream.
+  # Projection path still exercises; live projected fields depend on upstream.
   http_json POST \
     "${BASE_URL}/api/mcp/app_execute_action?genai_app=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "${MCP_NAME:-ifconfig}")&app_type=mcp" \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -825,8 +825,8 @@ if [[ -n "$TOKEN" ]]; then
   expect_status "user/me still valid after prior calls" "200" || true
 
   # Confirm Mongo still answers after API traffic
-  mongo_id="$(apigene_service_id mongo 2>/dev/null || true)"
-  if [[ -n "$mongo_id" ]] && apigene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
+  mongo_id="$(olgene_service_id mongo 2>/dev/null || true)"
+  if [[ -n "$mongo_id" ]] && olgene_ctr exec "$mongo_id" mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
     pass "mongo still healthy after API traffic"
   else
     fail "mongo ping failed after API traffic"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install a just-built on-prem bundle the way a customer does, and run
-# ./apigene test. Publish only after this exits 0.
+# ./olgene test. Publish only after this exits 0.
 #
 #   ./scripts/test-onprem-bundle.sh 5.5.1
 #
@@ -37,11 +37,11 @@ install_dir="${unpack_root}/ol-gene-${tag}"
 started=0
 
 cleanup() {
-  if [[ "${started:-0}" -eq 1 && -n "${install_dir:-}" && -x "${install_dir}/apigene" ]]; then
+  if [[ "${started:-0}" -eq 1 && -n "${install_dir:-}" && -x "${install_dir}/olgene" ]]; then
     (
       trap - EXIT
       cd "$install_dir"
-      ./apigene stop
+      ./olgene stop
     ) || true
   fi
   if [[ -n "${unpack_root:-}" && -d "$unpack_root" ]]; then
@@ -51,7 +51,7 @@ cleanup() {
 trap cleanup EXIT
 
 dump_logs() {
-  if [[ ! -x "${install_dir}/apigene" ]]; then
+  if [[ ! -x "${install_dir}/olgene" ]]; then
     return 0
   fi
   (
@@ -76,7 +76,7 @@ if [[ ! -d "$install_dir" ]]; then
   exit 1
 fi
 
-for required in apigene docker-compose.yml nginx.conf mongod.conf .env.example .env INSTALL.md apigene-images.tar.gz; do
+for required in olgene docker-compose.yml nginx.conf mongod.conf .env.example .env INSTALL.md olgene-images.tar.gz; do
   if [[ ! -e "${install_dir}/${required}" ]]; then
     echo "Bundle is missing ${required}" >&2
     exit 1
@@ -125,7 +125,7 @@ started=1
 (
   trap - EXIT
   cd "$install_dir"
-  ./apigene setup
+  ./olgene setup
 )
 
 port="$(grep -E '^[[:space:]]*APIGENE_PORT=' "${install_dir}/.env" | head -1 | cut -d= -f2- | tr -d '"'"'" || true)"
@@ -178,10 +178,10 @@ fi
 if ! (
   trap - EXIT
   cd "$install_dir"
-  ./apigene test
+  ./olgene test
 ); then
   dump_logs
   exit 1
 fi
 
-echo "Bundle ${archive} installed and passed ./apigene test"
+echo "Bundle ${archive} installed and passed ./olgene test"

@@ -49,7 +49,7 @@ Default URL: `http://localhost:8080` (or `APIGENE_PORT`).
 1. Update `.env.example` with documented defaults
 2. Adjust `docker-compose.yml` if service wiring changes
 3. Update `lib/defaults.sh` if derived URLs change
-4. Run `./apigene test` and `./tests/integration.sh`
+4. Run `./olgene test` and `./tests/integration.sh`
 
 ### Change routing
 
@@ -61,7 +61,7 @@ Default URL: `http://localhost:8080` (or `APIGENE_PORT`).
 
 1. Set `APIGENE_IMAGE_TAG` in `.env` (default `latest`). Override one service with `APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, or `APIGENE_NGINX_IMAGE_TAG`. Backend and the worker share the backend tag.
 2. `APIGENE_IMAGE_REGISTRY` defaults to `public.ecr.aws/apigene/` (trailing slash). Leave it empty for images already on the machine (`apigene-backend:<tag>`). Optional `APIGENE_*_IMAGE_NAME` overrides the published name.
-3. `./apigene start --pull` — skips Apigene images whose resolved ref is `name:tag`, and still pulls MongoDB and Redis.
+3. `./olgene start --pull` — skips Apigene images whose resolved ref is `name:tag`, and still pulls MongoDB and Redis.
 4. Align the public tag with `apigene-helm-chart` `imageTag` for releases.
 
 ## Local dev
@@ -70,26 +70,26 @@ Default URL: `http://localhost:8080` (or `APIGENE_PORT`).
 git clone https://github.com/apigene/apigene-docker-compose.git
 cd apigene-docker-compose
 chmod +x apigene
-./apigene setup --pull
-./apigene test
+./olgene setup --pull
+./olgene test
 ./tests/integration.sh
 ```
 
-`./apigene setup` loads `apigene-images.tar.gz` from the current directory and starts. A git clone has no archive, so local dev uses `--pull`. `./apigene package <tag>` writes `ol-gene-<tag>-linux-amd64.tar.gz` and a `.sha256` file. The archive includes `sbom/*.cdx.json`, one CycloneDX document per image, written by Syft. `./scripts/test-onprem-bundle.sh <tag>` checks those files, installs the tarball, and runs `./apigene test` before it is uploaded. The customer steps are in `INSTALL.md`.
+`./olgene setup` loads `olgene-images.tar.gz` from the current directory and starts. A git clone has no archive, so local dev uses `--pull`. `./olgene package <tag>` writes `ol-gene-<tag>-linux-amd64.tar.gz` and a `.sha256` file. The archive includes `sbom/*.cdx.json`, one CycloneDX document per image, written by Syft. `./scripts/test-onprem-bundle.sh <tag>` checks those files, installs the tarball, and runs `./olgene test` before it is uploaded. The customer steps are in `INSTALL.md`.
 
 | Command | Purpose |
 |---------|---------|
-| `./apigene setup` | Create `.env`, load `apigene-images.tar.gz`, start |
-| `./apigene setup --pull` | Create `.env`, pull images, start |
-| `./apigene start` | Start all services |
-| `./apigene start --pull` | Pull images, then start. Skips local `name:tag` images |
-| `./apigene images save` | Pull the stack images and write `apigene-images.tar.gz` |
-| `./apigene images load` | Load that archive into Docker or Podman |
-| `./apigene images push <registry>` | Push loaded images to a private registry, for the Helm chart's `images.mirror` |
-| `./apigene package <tag>` | Build the on-prem tarball for a release tag |
-| `./apigene test` | Health checks |
-| `./apigene logs [service]` | Tail logs |
-| `./apigene stop` | Stop (keeps Mongo data) |
+| `./olgene setup` | Create `.env`, load `olgene-images.tar.gz`, start |
+| `./olgene setup --pull` | Create `.env`, pull images, start |
+| `./olgene start` | Start all services |
+| `./olgene start --pull` | Pull images, then start. Skips local `name:tag` images |
+| `./olgene images save` | Pull the stack images and write `olgene-images.tar.gz` |
+| `./olgene images load` | Load that archive into Docker or Podman |
+| `./olgene images push <registry>` | Push loaded images to a private registry, for the Helm chart's `images.mirror` |
+| `./olgene package <tag>` | Build the on-prem tarball for a release tag |
+| `./olgene test` | Health checks |
+| `./olgene logs [service]` | Tail logs |
+| `./olgene stop` | Stop (keeps Mongo data) |
 
 ## Env vars that matter
 
@@ -104,7 +104,7 @@ chmod +x apigene
 
 ## Conventions
 
-- **CLI:** Bash scripts in `lib/`; main entrypoint is `./apigene`
+- **CLI:** Bash scripts in `lib/`; main entrypoint is `./olgene`
 - **Auth default:** `NEXT_PUBLIC_AUTH_PROVIDER=apigene` (API key). Supported values: `apigene | keycloak | clerk`
 - **Production:** Pin image tags; do not rely on `latest`
 
@@ -119,7 +119,7 @@ chmod +x apigene
 
 ## Safe defaults for agents
 
-- Prefer `./apigene test` over manual curl checks
+- Prefer `./olgene test` over manual curl checks
 - Document new env vars in `.env.example` and README
 - Do not commit `.env` with real secrets
 - Keep nginx routing table in sync with README

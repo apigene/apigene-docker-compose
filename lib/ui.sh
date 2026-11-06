@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Shared UI helpers for the Apigene CLI.
+# Shared UI helpers for the OL-Gene CLI.
 
 # shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/defaults.sh"
 
-apigene_init_colors() {
+olgene_init_colors() {
   if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
     C_RESET='\033[0m'
     C_BOLD='\033[1m'
@@ -21,7 +21,7 @@ apigene_init_colors() {
   fi
 }
 
-apigene_banner() {
+olgene_banner() {
   local title="$1"
   echo -e "${C_BOLD}${C_MAGENTA}"
   echo "  ╔══════════════════════════════════════╗"
@@ -30,32 +30,32 @@ apigene_banner() {
   echo -e "${C_RESET}"
 }
 
-apigene_section() {
+olgene_section() {
   echo ""
   echo -e "${C_BOLD}${C_CYAN}━━ $1 ━━${C_RESET}"
 }
 
-apigene_info() {
+olgene_info() {
   echo -e "  ${C_DIM}·${C_RESET}  $1"
 }
 
-apigene_ok() {
+olgene_ok() {
   echo -e "  ${C_GREEN}✔${C_RESET}  $1"
 }
 
-apigene_warn() {
+olgene_warn() {
   echo -e "  ${C_YELLOW}!${C_RESET}  $1"
 }
 
-apigene_err() {
+olgene_err() {
   echo -e "  ${C_RED}✘${C_RESET}  $1"
 }
 
-apigene_step() {
+olgene_step() {
   echo -e "  ${C_BLUE}→${C_RESET}  $1"
 }
 
-apigene_load_env() {
+olgene_load_env() {
   APIGENE_PORT="${APIGENE_DEFAULT_PORT}"
   APIGENE_IMAGE_TAG="${APIGENE_DEFAULT_IMAGE_TAG}"
   APIGENE_IMAGE_REGISTRY=""
@@ -70,19 +70,19 @@ apigene_load_env() {
   local explicit_base_url="" registry_set=0
 
   if [[ -f .env ]]; then
-    explicit_base_url="$(apigene_env_file_value .env NEXT_PUBLIC_SERVER_BASE_URL || true)"
-    APIGENE_PORT="$(apigene_env_file_value .env APIGENE_PORT || true)"
-    APIGENE_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_IMAGE_TAG || true)"
-    APIGENE_BACKEND_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_BACKEND_IMAGE_TAG || true)"
-    APIGENE_COPILOT_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_COPILOT_IMAGE_TAG || true)"
-    APIGENE_MCP_GW_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_MCP_GW_IMAGE_TAG || true)"
-    APIGENE_NGINX_IMAGE_TAG="$(apigene_env_file_value .env APIGENE_NGINX_IMAGE_TAG || true)"
-    APIGENE_BACKEND_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_BACKEND_IMAGE_NAME || true)"
-    APIGENE_COPILOT_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_COPILOT_IMAGE_NAME || true)"
-    APIGENE_MCP_GW_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_MCP_GW_IMAGE_NAME || true)"
-    APIGENE_NGINX_IMAGE_NAME="$(apigene_env_file_value .env APIGENE_NGINX_IMAGE_NAME || true)"
+    explicit_base_url="$(olgene_env_file_value .env NEXT_PUBLIC_SERVER_BASE_URL || true)"
+    APIGENE_PORT="$(olgene_env_file_value .env APIGENE_PORT || true)"
+    APIGENE_IMAGE_TAG="$(olgene_env_file_value .env APIGENE_IMAGE_TAG || true)"
+    APIGENE_BACKEND_IMAGE_TAG="$(olgene_env_file_value .env APIGENE_BACKEND_IMAGE_TAG || true)"
+    APIGENE_COPILOT_IMAGE_TAG="$(olgene_env_file_value .env APIGENE_COPILOT_IMAGE_TAG || true)"
+    APIGENE_MCP_GW_IMAGE_TAG="$(olgene_env_file_value .env APIGENE_MCP_GW_IMAGE_TAG || true)"
+    APIGENE_NGINX_IMAGE_TAG="$(olgene_env_file_value .env APIGENE_NGINX_IMAGE_TAG || true)"
+    APIGENE_BACKEND_IMAGE_NAME="$(olgene_env_file_value .env APIGENE_BACKEND_IMAGE_NAME || true)"
+    APIGENE_COPILOT_IMAGE_NAME="$(olgene_env_file_value .env APIGENE_COPILOT_IMAGE_NAME || true)"
+    APIGENE_MCP_GW_IMAGE_NAME="$(olgene_env_file_value .env APIGENE_MCP_GW_IMAGE_NAME || true)"
+    APIGENE_NGINX_IMAGE_NAME="$(olgene_env_file_value .env APIGENE_NGINX_IMAGE_NAME || true)"
     # An explicit empty registry means local name:tag images. A missing key does not.
-    if apigene_env_file_has_key .env APIGENE_IMAGE_REGISTRY; then
+    if olgene_env_file_has_key .env APIGENE_IMAGE_REGISTRY; then
       registry_set=1
     fi
 
@@ -93,7 +93,7 @@ apigene_load_env() {
   fi
 
   APIGENE_PORT="${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}"
-  APIGENE_BASE_URL="$(apigene_resolve_base_url "${APIGENE_PORT}" "${explicit_base_url}")"
+  APIGENE_BASE_URL="$(olgene_resolve_base_url "${APIGENE_PORT}" "${explicit_base_url}")"
   APIGENE_IMAGE_TAG="${APIGENE_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
   APIGENE_BACKEND_IMAGE_TAG="${APIGENE_BACKEND_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
   APIGENE_COPILOT_IMAGE_TAG="${APIGENE_COPILOT_IMAGE_TAG:-${APIGENE_IMAGE_TAG}}"
@@ -106,11 +106,11 @@ apigene_load_env() {
   if [[ "$registry_set" -eq 0 ]]; then
     APIGENE_IMAGE_REGISTRY="${APIGENE_DEFAULT_IMAGE_REGISTRY}"
   fi
-  APIGENE_IMAGE_REGISTRY="$(apigene_normalize_image_registry "${APIGENE_IMAGE_REGISTRY}")"
-  APIGENE_BACKEND_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_BACKEND_IMAGE_NAME}" "${APIGENE_BACKEND_IMAGE_TAG}")"
-  APIGENE_COPILOT_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_COPILOT_IMAGE_NAME}" "${APIGENE_COPILOT_IMAGE_TAG}")"
-  APIGENE_MCP_GW_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_MCP_GW_IMAGE_NAME}" "${APIGENE_MCP_GW_IMAGE_TAG}")"
-  APIGENE_NGINX_IMAGE="$(apigene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_NGINX_IMAGE_NAME}" "${APIGENE_NGINX_IMAGE_TAG}")"
+  APIGENE_IMAGE_REGISTRY="$(olgene_normalize_image_registry "${APIGENE_IMAGE_REGISTRY}")"
+  APIGENE_BACKEND_IMAGE="$(olgene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_BACKEND_IMAGE_NAME}" "${APIGENE_BACKEND_IMAGE_TAG}")"
+  APIGENE_COPILOT_IMAGE="$(olgene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_COPILOT_IMAGE_NAME}" "${APIGENE_COPILOT_IMAGE_TAG}")"
+  APIGENE_MCP_GW_IMAGE="$(olgene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_MCP_GW_IMAGE_NAME}" "${APIGENE_MCP_GW_IMAGE_TAG}")"
+  APIGENE_NGINX_IMAGE="$(olgene_join_image "${APIGENE_IMAGE_REGISTRY}" "${APIGENE_NGINX_IMAGE_NAME}" "${APIGENE_NGINX_IMAGE_TAG}")"
   # Compose interpolation is single-level so podman-compose 1.0.3 can parse it.
   # Export the resolved pieces and the port-derived public URL for that step.
   # APIGENE_IMAGE_REGISTRY uses ${VAR-default} in the compose file: empty stays
@@ -128,25 +128,25 @@ apigene_load_env() {
   if [[ -z "${ALLOWED_ORIGINS:-}" ]]; then
     export ALLOWED_ORIGINS="${NEXT_PUBLIC_SERVER_BASE_URL}"
   fi
-  if declare -F apigene_configure_compose_files >/dev/null 2>&1; then
-    apigene_configure_compose_files
+  if declare -F olgene_configure_compose_files >/dev/null 2>&1; then
+    olgene_configure_compose_files
   fi
 }
 
-apigene_print_images() {
+olgene_print_images() {
   if [[ -n "${APIGENE_IMAGE_REGISTRY}" ]]; then
-    apigene_info "Registry:  ${APIGENE_IMAGE_REGISTRY}"
+    olgene_info "Registry:  ${APIGENE_IMAGE_REGISTRY}"
   else
-    apigene_info "Registry:  local images"
+    olgene_info "Registry:  local images"
   fi
-  apigene_info "backend:   ${APIGENE_BACKEND_IMAGE}"
-  apigene_info "copilot:   ${APIGENE_COPILOT_IMAGE}"
-  apigene_info "mcp-gw:    ${APIGENE_MCP_GW_IMAGE}"
-  apigene_info "nginx:     ${APIGENE_NGINX_IMAGE}"
+  olgene_info "backend:   ${APIGENE_BACKEND_IMAGE}"
+  olgene_info "copilot:   ${APIGENE_COPILOT_IMAGE}"
+  olgene_info "mcp-gw:    ${APIGENE_MCP_GW_IMAGE}"
+  olgene_info "nginx:     ${APIGENE_NGINX_IMAGE}"
 }
 
 # Literal `image:` under a service. Skips values that still contain a compose substitution.
-apigene_literal_service_image() {
+olgene_literal_service_image() {
   local service="$1" image
   image="$(awk -v svc="$service" '
     $0 ~ "^  " svc ":$" { found=1; next }
@@ -158,7 +158,7 @@ apigene_literal_service_image() {
   image="${image#\'}"
   image="${image%\'}"
   if [[ -z "$image" || "$image" == *'${'* ]]; then
-    apigene_err "No literal image for ${service} in docker-compose.yml"
+    olgene_err "No literal image for ${service} in docker-compose.yml"
     return 1
   fi
   printf '%s\n' "$image"
@@ -167,13 +167,13 @@ apigene_literal_service_image() {
 # Pull remote images. name:tag references stay on the machine.
 # podman-compose 1.0.3 accepts `pull` with no service names. A name list is
 # "unrecognized arguments" and the command exits 2.
-apigene_pull_images() {
+olgene_pull_images() {
   local -a services=(mongo redis)
   local -a local_images=()
   local -a remote_refs=()
   local spec image service line ref
 
-  apigene_runtime_init || return 1
+  olgene_runtime_init || return 1
 
   for spec in \
     "backend|${APIGENE_BACKEND_IMAGE}" \
@@ -183,7 +183,7 @@ apigene_pull_images() {
   do
     service="${spec%%|*}"
     image="${spec#*|}"
-    if apigene_image_is_local "$image"; then
+    if olgene_image_is_local "$image"; then
       local_images+=("${service}  ${image}")
       continue
     fi
@@ -195,46 +195,46 @@ apigene_pull_images() {
   done
 
   if [[ ${#local_images[@]} -gt 0 ]]; then
-    apigene_info "Local images — leaving these on the machine:"
+    olgene_info "Local images — leaving these on the machine:"
     for line in "${local_images[@]}"; do
-      apigene_info "  ${line}"
+      olgene_info "  ${line}"
     done
   fi
 
   if [[ ${#remote_refs[@]} -eq 0 ]]; then
-    apigene_step "Pulling mongo and redis"
+    olgene_step "Pulling mongo and redis"
   else
-    apigene_step "Pulling images"
+    olgene_step "Pulling images"
   fi
 
-  if apigene_compose_is_podman_compose_v1; then
+  if olgene_compose_is_podman_compose_v1; then
     if [[ ${#local_images[@]} -eq 0 ]]; then
-      apigene_compose pull
+      olgene_compose pull
     else
       # A bare pull also fetches name:tag images, so pull the remote refs directly.
-      apigene_ctr pull "$(apigene_literal_service_image mongo)"
-      apigene_ctr pull "$(apigene_literal_service_image redis)"
+      olgene_ctr pull "$(olgene_literal_service_image mongo)"
+      olgene_ctr pull "$(olgene_literal_service_image redis)"
       if [[ ${#remote_refs[@]} -gt 0 ]]; then
         for ref in "${remote_refs[@]}"; do
-          apigene_ctr pull "$ref"
+          olgene_ctr pull "$ref"
         done
       fi
     fi
   else
     # pull_policy: never would make a plain `compose pull` succeed without
     # fetching anything. --policy always is the explicit pull.
-    apigene_compose pull --policy always "${services[@]}"
+    olgene_compose pull --policy always "${services[@]}"
   fi
-  apigene_ok "Images up to date"
+  olgene_ok "Images up to date"
 }
 
-apigene_require_env() {
+olgene_require_env() {
   if [[ ! -f .env ]]; then
-    apigene_err ".env not found"
-    apigene_info "Bundle:   ${C_BOLD}./apigene setup${C_RESET}"
-    apigene_info "Registry: ${C_BOLD}./apigene setup --pull${C_RESET}"
+    olgene_err ".env not found"
+    olgene_info "Bundle:   ${C_BOLD}./olgene setup${C_RESET}"
+    olgene_info "Registry: ${C_BOLD}./olgene setup --pull${C_RESET}"
     exit 1
   fi
 }
 
-apigene_init_colors
+olgene_init_colors

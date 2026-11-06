@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared defaults for the Apigene CLI and installer.
+# Shared defaults for the OL-Gene CLI and installer.
 # Set APIGENE_PORT once in .env; everything else derives from it.
 
 APIGENE_DEFAULT_PORT="${APIGENE_DEFAULT_PORT:-8080}"
@@ -23,14 +23,14 @@ APIGENE_DEFAULT_MCP_GW_IMAGE_TAG="${APIGENE_DEFAULT_MCP_GW_IMAGE_TAG:-${APIGENE_
 APIGENE_DEFAULT_NGINX_IMAGE_TAG="${APIGENE_DEFAULT_NGINX_IMAGE_TAG:-${APIGENE_DEFAULT_IMAGE_TAG}}"
 
 # True when .env contains an uncommented KEY= line.
-apigene_env_file_has_key() {
+olgene_env_file_has_key() {
   local file="$1" key="$2"
   [[ -f "$file" ]] || return 1
   grep -qE "^[[:space:]]*${key}=" "$file"
 }
 
 # Keep a non-empty registry usable as a prefix. Empty stays empty (local images).
-apigene_normalize_image_registry() {
+olgene_normalize_image_registry() {
   local registry="${1:-}"
   registry="${registry#"${registry%%[![:space:]]*}"}"
   registry="${registry%"${registry##*[![:space:]]}"}"
@@ -43,7 +43,7 @@ apigene_normalize_image_registry() {
 }
 
 # registry already includes a trailing slash when it is non-empty.
-apigene_join_image() {
+olgene_join_image() {
   local registry="$1" name="$2" tag="$3"
   if [[ -n "$registry" ]]; then
     printf '%s%s:%s\n' "$registry" "$name" "$tag"
@@ -53,18 +53,18 @@ apigene_join_image() {
 }
 
 # A local image is name:tag. A registry reference contains a slash.
-apigene_image_is_local() {
+olgene_image_is_local() {
   local image="$1"
   [[ "$image" != */* && "$image" != *@* ]]
 }
 
-apigene_public_base_url() {
+olgene_public_base_url() {
   local port="${1:-${APIGENE_PORT:-${APIGENE_DEFAULT_PORT}}}"
   echo "http://localhost:${port}"
 }
 
 # Read the first uncommented KEY=value from .env (ignores parent-shell exports).
-apigene_env_file_value() {
+olgene_env_file_value() {
   local file="$1" key="$2"
   [[ -f "$file" ]] || return 1
   grep -E "^[[:space:]]*${key}=" "$file" | head -1 | cut -d= -f2- \
@@ -72,7 +72,7 @@ apigene_env_file_value() {
 }
 
 # Resolve the public base URL for CLI output and health checks.
-apigene_resolve_base_url() {
+olgene_resolve_base_url() {
   local port="${1:-${APIGENE_DEFAULT_PORT}}"
   local explicit="${2:-}"
   local url
@@ -80,7 +80,7 @@ apigene_resolve_base_url() {
   if [[ -n "$explicit" ]]; then
     url="$explicit"
   else
-    url="$(apigene_public_base_url "$port")"
+    url="$(olgene_public_base_url "$port")"
   fi
 
   # Older .env templates used http://localhost while nginx listens on APIGENE_PORT.
@@ -93,7 +93,7 @@ apigene_resolve_base_url() {
 
 # Append KEY=value lines from .env.example that are missing from an existing .env.
 # Returns 0 when at least one key was added.
-apigene_merge_env_from_example() {
+olgene_merge_env_from_example() {
   local example="${1:-.env.example}" env_file="${2:-.env}"
   local line key added=0
 

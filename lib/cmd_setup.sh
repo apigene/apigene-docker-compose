@@ -2,11 +2,11 @@
 
 cmd_setup_usage() {
   cat <<EOF
-Usage: ./apigene setup [--pull] [archive]
+Usage: ./olgene setup [--pull] [archive]
 
-  ./apigene setup              Load apigene-images.tar.gz and start
-  ./apigene setup <archive>    Load that archive and start
-  ./apigene setup --pull       Pull images from the registry and start
+  ./olgene setup              Load olgene-images.tar.gz and start
+  ./olgene setup <archive>    Load that archive and start
+  ./olgene setup --pull       Pull images from the registry and start
 
 Creates .env from .env.example when it is missing, and generates
 AUTH_APIGENE_SECRET_KEY when it is still the placeholder.
@@ -16,18 +16,18 @@ EOF
 
 cmd_setup_prepare_env() {
   if [[ -f .env ]]; then
-    apigene_section "Update configuration"
-    if apigene_merge_env_from_example; then
-      apigene_ok "Added missing settings from .env.example"
+    olgene_section "Update configuration"
+    if olgene_merge_env_from_example; then
+      olgene_ok "Added missing settings from .env.example"
     else
-      apigene_info "Configuration up to date"
+      olgene_info "Configuration up to date"
     fi
   fi
 
   if [[ ! -f .env ]]; then
-    apigene_section "Create configuration"
+    olgene_section "Create configuration"
     cp .env.example .env
-    apigene_ok "Created .env from .env.example"
+    olgene_ok "Created .env from .env.example"
   fi
 
   if grep -qE '^AUTH_APIGENE_SECRET_KEY=(YOUR_SECRET_KEY)?$' .env 2>/dev/null; then
@@ -38,23 +38,23 @@ cmd_setup_prepare_env() {
     else
       sed -i "s/^AUTH_APIGENE_SECRET_KEY=.*/AUTH_APIGENE_SECRET_KEY=${generated_secret}/" .env
     fi
-    apigene_ok "Generated AUTH_APIGENE_SECRET_KEY for this install"
-    apigene_info "Change it in .env before production use (see README.md)"
+    olgene_ok "Generated AUTH_APIGENE_SECRET_KEY for this install"
+    olgene_info "Change it in .env before production use (see README.md)"
   fi
 
-  apigene_load_env
-  apigene_info "Base URL:  ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
+  olgene_load_env
+  olgene_info "Base URL:  ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
 }
 
 cmd_setup() {
   local pull_images=false
   local archive=""
-  local default_archive="${APIGENE_DEFAULT_IMAGE_ARCHIVE:-apigene-images.tar.gz}"
+  local default_archive="${APIGENE_DEFAULT_IMAGE_ARCHIVE:-olgene-images.tar.gz}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -h|--help)
-        apigene_banner "Apigene Setup"
+        olgene_banner "OL-Gene Setup"
         cmd_setup_usage
         return 0
         ;;
@@ -63,14 +63,14 @@ cmd_setup() {
         shift
         ;;
       -*)
-        apigene_err "Unknown option: $1"
+        olgene_err "Unknown option: $1"
         echo ""
         cmd_setup_usage
         return 1
         ;;
       *)
         if [[ -n "$archive" ]]; then
-          apigene_err "Unexpected argument: $1"
+          olgene_err "Unexpected argument: $1"
           echo ""
           cmd_setup_usage
           return 1
@@ -82,7 +82,7 @@ cmd_setup() {
   done
 
   if [[ "$pull_images" == true && -n "$archive" ]]; then
-    apigene_err "--pull does not take an archive path"
+    olgene_err "--pull does not take an archive path"
     echo ""
     cmd_setup_usage
     return 1
@@ -92,22 +92,22 @@ cmd_setup() {
   if [[ "$pull_images" != true ]]; then
     archive="${archive:-$default_archive}"
     if [[ ! -f "$archive" ]]; then
-      apigene_err "Archive not found: ${archive}"
-      apigene_info "Run this from the unpacked release directory, or pass the archive path."
+      olgene_err "Archive not found: ${archive}"
+      olgene_info "Run this from the unpacked release directory, or pass the archive path."
       return 1
     fi
   fi
 
-  apigene_banner "Apigene Setup"
+  olgene_banner "OL-Gene Setup"
   cmd_setup_prepare_env
 
   if [[ "$pull_images" == true ]]; then
-    apigene_section "Pull images"
-    apigene_pull_images || return 1
+    olgene_section "Pull images"
+    olgene_pull_images || return 1
   else
     cmd_images_load "$archive" || return 1
   fi
 
-  apigene_section "Start services"
+  olgene_section "Start services"
   cmd_start
 }

@@ -7,7 +7,7 @@ cmd_start() {
     case "$1" in
       --pull) pull_images=true ;;
       -h|--help)
-        apigene_banner "Apigene Start"
+        olgene_banner "OL-Gene Start"
         echo "Usage: apigene start [--pull]"
         echo ""
         echo "  apigene start        Start all services"
@@ -16,48 +16,48 @@ cmd_start() {
         return 0
         ;;
       *)
-        apigene_err "Unknown option: $1"
+        olgene_err "Unknown option: $1"
         return 1
         ;;
     esac
     shift
   done
 
-  apigene_require_env
-  apigene_load_env
+  olgene_require_env
+  olgene_load_env
 
-  apigene_banner "Apigene Start"
-  apigene_info "Base URL:   ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
-  apigene_print_images
-  apigene_info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
+  olgene_banner "OL-Gene Start"
+  olgene_info "Base URL:   ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
+  olgene_print_images
+  olgene_info "Time:       $(date '+%Y-%m-%d %H:%M:%S')"
 
-  apigene_runtime_init || return 1
+  olgene_runtime_init || return 1
 
   if [[ "$pull_images" == "true" ]]; then
-    apigene_section "Pull images"
-    apigene_pull_images
+    olgene_section "Pull images"
+    olgene_pull_images
   fi
 
-  apigene_section "Start services"
-  apigene_step "${APIGENE_COMPOSE[*]} up -d"
-  apigene_compose up -d
-  apigene_ok "Containers started"
+  olgene_section "Start services"
+  olgene_step "${OLGENE_COMPOSE[*]} up -d"
+  olgene_compose up -d
+  olgene_ok "Containers started"
 
-  apigene_section "Endpoints"
-  apigene_info "UI + API:  ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
-  apigene_info "Health:    ${APIGENE_BASE_URL}/nginx-health"
-  apigene_info "API:       ${APIGENE_BASE_URL}/api/health"
-  apigene_info "Docs:      ${APIGENE_BASE_URL}/docs"
-  if apigene_log_viewer_enabled; then
-    apigene_info "Logs UI:   ${APIGENE_BASE_URL}/log-viewer"
+  olgene_section "Endpoints"
+  olgene_info "UI + API:  ${C_BOLD}${APIGENE_BASE_URL}${C_RESET}"
+  olgene_info "Health:    ${APIGENE_BASE_URL}/nginx-health"
+  olgene_info "API:       ${APIGENE_BASE_URL}/api/health"
+  olgene_info "Docs:      ${APIGENE_BASE_URL}/docs"
+  if olgene_log_viewer_enabled; then
+    olgene_info "Logs UI:   ${APIGENE_BASE_URL}/log-viewer"
   fi
 
   echo ""
-  apigene_warn "First boot may take 1–2 minutes for all services to become healthy."
+  olgene_warn "First boot may take 1–2 minutes for all services to become healthy."
   echo ""
-  apigene_info "Verify:  ${C_BOLD}./apigene test${C_RESET}"
-  apigene_info "Logs:    ${C_DIM}./apigene logs${C_RESET}"
-  apigene_info "Stop:    ${C_BOLD}./apigene stop${C_RESET}"
+  olgene_info "Verify:  ${C_BOLD}./olgene test${C_RESET}"
+  olgene_info "Logs:    ${C_DIM}./olgene logs${C_RESET}"
+  olgene_info "Stop:    ${C_BOLD}./olgene stop${C_RESET}"
   echo ""
   echo -e "${C_GREEN}${C_BOLD}✔ Apigene is starting.${C_RESET}"
 }

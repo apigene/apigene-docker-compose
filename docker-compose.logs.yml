@@ -1,10 +1,10 @@
-# Merged only when APIGENE_LOG_VIEWER=true (see lib/runtime.sh).
-# Stdout is unchanged. Each app also appends JSONL under /var/log/apigene.
+# Merged only when LOG_VIEWER=true (see lib/runtime.sh).
+# Stdout is unchanged. Each app also appends JSONL under /var/log/olgene.
 
 services:
   backend:
     volumes:
-      - apigene_logs:/var/log/apigene
+      - apigene_logs:/var/log/olgene
       - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
       - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
     entrypoint: ["/bin/sh", "/opt/apigene/log-exec.sh", "backend", "./start.sh"]
@@ -12,7 +12,7 @@ services:
 
   backend-worker:
     volumes:
-      - apigene_logs:/var/log/apigene
+      - apigene_logs:/var/log/olgene
       - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
       - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
     entrypoint:
@@ -21,10 +21,10 @@ services:
 
   copilot:
     environment:
-      APIGENE_LOG_VIEWER: "true"
-      LOG_DIR: /var/log/apigene
+      LOG_VIEWER: "true"
+      LOG_DIR: /var/log/olgene
     volumes:
-      - apigene_logs:/var/log/apigene
+      - apigene_logs:/var/log/olgene
       - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
       - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
     entrypoint: ["/bin/sh", "/opt/apigene/log-exec.sh", "copilot", "node"]
@@ -32,7 +32,7 @@ services:
 
   mcp-gw:
     volumes:
-      - apigene_logs:/var/log/apigene
+      - apigene_logs:/var/log/olgene
       - ./lib/log-exec.sh:/opt/apigene/log-exec.sh:ro
       - ./lib/log-writer.sh:/opt/apigene/log-writer.sh:ro
     entrypoint: ["/bin/sh", "/opt/apigene/log-exec.sh", "mcp-gw", "node"]
@@ -40,13 +40,13 @@ services:
 
   nginx:
     volumes:
-      - apigene_logs:/var/log/apigene
-      - ./.apigene/nginx-log-viewer.conf:/etc/nginx/log-viewer.conf:ro
+      - apigene_logs:/var/log/olgene
+      - ./.olgene/nginx-log-viewer.conf:/etc/nginx/log-viewer.conf:ro
     entrypoint:
       [
         "/bin/sh",
         "-c",
-        "mkdir -p /var/log/apigene && chmod 1777 /var/log/apigene && sed \"s/listen 8080;/listen $${APIGENE_PORT:-8080};/\" /etc/nginx/nginx.conf.template > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
+        "mkdir -p /var/log/olgene && chmod 1777 /var/log/olgene && sed \"s/listen 8080;/listen $${APIGENE_PORT:-8080};/\" /etc/nginx/nginx.conf.template > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf -g 'daemon off;'",
       ]
 
 volumes:
