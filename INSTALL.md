@@ -25,6 +25,17 @@ On macOS the check is `shasum -a 256 -c ol-gene-__OL_GENE_VERSION__-linux-amd64.
 
 `./olgene setup` loads `olgene-images.tar.gz`, generates an auth secret for this host, and starts the stack. It does not contact a registry.
 
+## What you unpacked
+
+The archive opens as `ol-gene-__OL_GENE_VERSION__/`.
+
+- `olgene` — setup, start, stop, and logs
+- `olgene-images.tar.gz` — the container images. Setup loads this file
+- `.env` — host settings. Setup writes the auth secret here
+- `INSTALL.md` — this guide
+- `sbom/` — a CycloneDX file for each image
+- `docker-compose.yml`, `nginx.conf`, and `mongod.conf` — the stack setup starts
+
 ## Create the administrator
 
 ```bash
@@ -115,5 +126,3 @@ Set `APIGENE_IMAGE_TAG` in `.env` to the new version before starting, so Compose
 | Mongo exits 132 | The CPU does not expose AVX. Set the hypervisor CPU to host passthrough and reboot |
 | Port 8080 is taken | Set `APIGENE_PORT` in `.env` and run `./olgene start` |
 | UI loads and the API fails | The browser URL must match `NEXT_PUBLIC_SERVER_BASE_URL`, or `http://localhost:8080` when that variable is unset |
-
-A CycloneDX SBOM for each image is in `sbom/`.
