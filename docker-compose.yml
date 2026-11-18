@@ -29,7 +29,7 @@ x-apigene-local-env: &local-env
   REDIS_CACHE_DB: "1"
   TENANT_NAME: ${TENANT_NAME:-local}
   DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:-SaaS}
-  # OnPrem only (when DEPLOYMENT_TYPE=OnPrem): OpenLegacy Ed25519 key for license files
+  # OpenLegacy Ed25519 key: baked into workflow service exports; OnPrem also verifies license files
   LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
   UVICORN_WORKERS: "1"
   # Local default: http://localhost:$APIGENE_PORT. Set NEXT_PUBLIC_SERVER_BASE_URL for a
