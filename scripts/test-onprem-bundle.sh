@@ -85,6 +85,10 @@ done
 
 require_line "${install_dir}/.env" "APIGENE_IMAGE_TAG=${tag}"
 require_line "${install_dir}/.env" "DEPLOYMENT_TYPE=OnPrem"
+if ! grep -qE '^LICENSE_PUBLIC_KEY=.+' "${install_dir}/.env"; then
+  echo ".env has no LICENSE_PUBLIC_KEY" >&2
+  exit 1
+fi
 require_line "${install_dir}/.env" "AUTH_APIGENE_SECRET_KEY=YOUR_SECRET_KEY"
 require_line "${install_dir}/.env" "NEXT_PUBLIC_AUTH_PROVIDER=apigene"
 
@@ -102,6 +106,7 @@ sbom_files=(
   apigene-copilot.cdx.json
   apigene-mcp-gw.cdx.json
   apigene-nginx.cdx.json
+  apigene-workflow-runtime.cdx.json
   mongo.cdx.json
   redis.cdx.json
 )
@@ -127,6 +132,13 @@ started=1
   cd "$install_dir"
   ./olgene setup
 )
+
+# Exported workflow services build on this image; setup must have loaded it.
+runtime_image="$(grep -E '^[[:space:]]*APIGENE_IMAGE_REGISTRY=' "${install_dir}/.env" | head -1 | cut -d= -f2- | tr -d '"'"'" || true)apigene-workflow-runtime:${tag}"
+if ! docker image inspect "$runtime_image" >/dev/null 2>&1; then
+  echo "Workflow runtime image ${runtime_image} was not loaded" >&2
+  exit 1
+fi
 
 port="$(grep -E '^[[:space:]]*APIGENE_PORT=' "${install_dir}/.env" | head -1 | cut -d= -f2- | tr -d '"'"'" || true)"
 port="${port:-8080}"

@@ -29,6 +29,7 @@ Does **not** own:
 | Helper scripts | `lib/cmd_*.sh`, `lib/defaults.sh` |
 | Integration tests | `tests/integration.sh` |
 | Image command tests | `tests/images.sh` (no engine needed) |
+| Package helper tests | `tests/package.sh` |
 | Nginx routing | `nginx.conf` |
 
 ## Routing
@@ -75,7 +76,7 @@ chmod +x olgene
 ./tests/integration.sh
 ```
 
-`./olgene setup` loads `olgene-images.tar.gz` from the current directory and starts. A git clone has no archive, so local dev uses `--pull`. `./olgene package <tag>` writes `ol-gene-<tag>-linux-amd64.tar.gz` and a `.sha256` file. The archive includes `sbom/*.cdx.json`, one CycloneDX document per image, written by Syft. `./scripts/test-onprem-bundle.sh <tag>` checks those files, installs the tarball, and runs `./olgene test` before it is uploaded. The customer steps are in `INSTALL.md`.
+`./olgene setup` loads `olgene-images.tar.gz` from the current directory and starts. A git clone has no archive, so local dev uses `--pull`. `./olgene package <tag>` writes `ol-gene-<tag>-linux-amd64.tar.gz` and a `.sha256` file. It needs `OL_LICENSE_PUBLIC_KEY` (the OpenLegacy license public key) and writes it into the bundle `.env` as `LICENSE_PUBLIC_KEY`. The archive includes `sbom/*.cdx.json`, one CycloneDX document per image, written by Syft. `./scripts/test-onprem-bundle.sh <tag>` checks those files, installs the tarball, and runs `./olgene test` before it is uploaded. The customer steps are in `INSTALL.md`.
 
 | Command | Purpose |
 |---------|---------|
@@ -97,6 +98,7 @@ chmod +x olgene
 - `APIGENE_IMAGE_REGISTRY` — registry prefix with trailing slash; empty uses local `name:tag` images
 - `APIGENE_IMAGE_TAG` — default tag for every Apigene image (`latest` or a pinned release)
 - `APIGENE_BACKEND_IMAGE_TAG`, `APIGENE_COPILOT_IMAGE_TAG`, `APIGENE_MCP_GW_IMAGE_TAG`, `APIGENE_NGINX_IMAGE_TAG` — optional per-image tags
+- `APIGENE_WORKFLOW_RUNTIME_IMAGE_NAME` — base image of exported workflow services (default `apigene-workflow-runtime`). Not run by the stack; it uses the registry and the backend tag, is in `olgene-images.tar.gz`, and the backend writes it into each export as `WORKFLOW_RUNTIME_IMAGE`
 - `APIGENE_IMAGE_PLATFORM` — default `linux/amd64`; set `linux/arm64` for locally built Apple Silicon images
 - `DATABASE_ENV` — logical data isolation (default `local`)
 - `AUTH_APIGENE_SECRET_KEY` — auto-generated on setup; change for production

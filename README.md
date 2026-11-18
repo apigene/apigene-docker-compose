@@ -23,7 +23,7 @@ This downloads the stack into the current directory (no Git required), creates `
 
 ### Release bundle
 
-An on-prem release is `ol-gene-<version>-linux-amd64.tar.gz` plus a `.sha256` file. Verify the checksum, unpack, and run `./olgene setup`. That loads `olgene-images.tar.gz` from the unpacked directory and starts without contacting a registry. The customer steps are in `INSTALL.md` inside the archive, next to `sbom/*.cdx.json` (one CycloneDX document per image). `./olgene package <tag>` builds that tarball from a machine that can pull. Syft must be on `PATH`.
+An on-prem release is `ol-gene-<version>-linux-amd64.tar.gz` plus a `.sha256` file. Verify the checksum, unpack, and run `./olgene setup`. That loads `olgene-images.tar.gz` from the unpacked directory and starts without contacting a registry. The customer steps are in `INSTALL.md` inside the archive, next to `sbom/*.cdx.json` (one CycloneDX document per image). `./olgene package <tag>` builds that tarball from a machine that can pull. Syft must be on `PATH`, and `OL_LICENSE_PUBLIC_KEY` must hold the OpenLegacy license public key, which the bundle `.env` gets as `LICENSE_PUBLIC_KEY`.
 
 When it finishes, open **http://localhost:8080** (or your `APIGENE_PORT`).
 
@@ -119,6 +119,7 @@ Each Apigene image is `registry` + `name` + `tag`. MongoDB and Redis are unchang
 | `APIGENE_MCP_GW_IMAGE_TAG` | `APIGENE_IMAGE_TAG` | MCP gateway tag |
 | `APIGENE_NGINX_IMAGE_TAG` | `APIGENE_IMAGE_TAG` | Nginx tag |
 | `APIGENE_*_IMAGE_NAME` | published name | Optional name override (`apigene-backend`, `apigene-copilot`, `apigene-mcp-gw`, `apigene-nginx`) |
+| `APIGENE_WORKFLOW_RUNTIME_IMAGE_NAME` | `apigene-workflow-runtime` | Base image of exported workflow services. Uses the registry and the backend tag, ships in `olgene-images.tar.gz`, and is written into each export |
 | `APIGENE_IMAGE_PLATFORM` | `linux/amd64` | Set `linux/arm64` for images built on Apple Silicon |
 
 `./olgene` copies `APIGENE_IMAGE_TAG` onto any per-service tag that is unset, and adds a trailing slash when `APIGENE_IMAGE_REGISTRY` is missing one. An empty registry is kept empty.
