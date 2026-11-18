@@ -40,6 +40,17 @@ olgene_package_env_set() {
   printf '%s=%s\n' "$key" "$value" >> "$file"
 }
 
+# Write the OpenLegacy license public key (OL_LICENSE_PUBLIC_KEY) into the bundle
+# .env. A bundle without it could not verify licenses or export workflow services.
+olgene_package_set_license_key() {
+  local file="$1"
+  if [[ -z "${OL_LICENSE_PUBLIC_KEY:-}" ]]; then
+    olgene_err "OL_LICENSE_PUBLIC_KEY is not set (OpenLegacy license public key, PEM or base64:<PEM>)"
+    return 1
+  fi
+  olgene_package_env_set "$file" LICENSE_PUBLIC_KEY "$OL_LICENSE_PUBLIC_KEY"
+}
+
 olgene_package_sha256() {
   local file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -171,6 +182,7 @@ cmd_package() {
   olgene_package_env_set "$stage/.env" APIGENE_IMAGE_TAG "$tag"
   olgene_package_env_set "$stage/.env" APIGENE_IMAGE_PLATFORM "linux/amd64"
   olgene_package_env_set "$stage/.env" DEPLOYMENT_TYPE "OnPrem"
+  olgene_package_set_license_key "$stage/.env" || return 1
   olgene_package_env_set "$stage/.env" NEXT_PUBLIC_AUTH_PROVIDER "apigene"
   olgene_package_env_set "$stage/.env" AUTH_APIGENE_SECRET_KEY "YOUR_SECRET_KEY"
 

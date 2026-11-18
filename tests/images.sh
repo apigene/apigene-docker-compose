@@ -59,14 +59,15 @@ TAG="${TAG##*:}"
 
 list="$(olgene_stack_image_list)"
 check "image list has the init image" grep -q '^docker.io/library/busybox:' <<< "$list"
-check "image list has seven images" test "$(wc -l <<< "$list" | tr -d ' ')" = 7
+check "image list has the workflow runtime" grep -qE "(^|/)apigene-workflow-runtime:${TAG}\$" <<< "$list"
+check "image list has eight images" test "$(wc -l <<< "$list" | tr -d ' ')" = 8
 
 reset
 cmd_images_push registry.example.com/gene/ >/dev/null 2>&1
 status=$?
 check "push succeeds" test "$status" = 0
 for short in "apigene-backend:${TAG}" "apigene-copilot:${TAG}" "apigene-mcp-gw:${TAG}" \
-  "apigene-nginx:${TAG}" mongo:7 redis:7-alpine busybox:1.36; do
+  "apigene-nginx:${TAG}" "apigene-workflow-runtime:${TAG}" mongo:7 redis:7-alpine busybox:1.36; do
   check "pushes ${short}" called "push registry.example.com/gene/${short}"
 done
 check "tags from the source image" called \

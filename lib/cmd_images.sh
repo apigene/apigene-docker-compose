@@ -26,7 +26,8 @@ without --pull.
 EOF
 }
 
-# One resolved ref per line: four Apigene images, MongoDB, Redis, and the
+# One resolved ref per line: four Apigene images, the workflow runtime image
+# (base of exported workflow services), MongoDB, Redis, and the
 # Helm chart's init image.
 olgene_stack_image_list() {
   local image seen=""
@@ -38,6 +39,7 @@ olgene_stack_image_list() {
     "$APIGENE_COPILOT_IMAGE" \
     "$APIGENE_MCP_GW_IMAGE" \
     "$APIGENE_NGINX_IMAGE" \
+    "$APIGENE_WORKFLOW_RUNTIME_IMAGE" \
     "$mongo" \
     "$redis" \
     "$APIGENE_INIT_IMAGE"

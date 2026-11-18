@@ -31,6 +31,8 @@ x-apigene-local-env: &local-env
   DEPLOYMENT_TYPE: ${DEPLOYMENT_TYPE:-SaaS}
   # OpenLegacy Ed25519 key: baked into workflow service exports; OnPrem also verifies license files
   LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+  # Base image written into exported workflow services: this install's registry and backend tag.
+  WORKFLOW_RUNTIME_IMAGE: ${APIGENE_IMAGE_REGISTRY-public.ecr.aws/apigene/}${APIGENE_WORKFLOW_RUNTIME_IMAGE_NAME:-apigene-workflow-runtime}:${APIGENE_BACKEND_IMAGE_TAG:-latest}
   UVICORN_WORKERS: "1"
   # Local default: http://localhost:$APIGENE_PORT. Set NEXT_PUBLIC_SERVER_BASE_URL for a
   # custom domain, LAN IP, or HTTPS URL; ALLOWED_ORIGINS follows unless overridden.
