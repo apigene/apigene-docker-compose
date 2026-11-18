@@ -48,6 +48,10 @@ olgene_package_set_license_key() {
     olgene_err "OL_LICENSE_PUBLIC_KEY is not set (OpenLegacy license public key, PEM or base64:<PEM>)"
     return 1
   fi
+  if [[ "$OL_LICENSE_PUBLIC_KEY" == *$'\n'* || "$OL_LICENSE_PUBLIC_KEY" == *'|'* ]]; then
+    olgene_err "OL_LICENSE_PUBLIC_KEY must be one line; use the base64:<PEM> form"
+    return 1
+  fi
   olgene_package_env_set "$file" LICENSE_PUBLIC_KEY "$OL_LICENSE_PUBLIC_KEY"
 }
 

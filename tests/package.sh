@@ -35,5 +35,9 @@ OL_LICENSE_PUBLIC_KEY="" olgene_package_set_license_key "$WORK/.env" >/dev/null 
 check "fails without a key" test "$?" != 0
 check "writes nothing without a key" bash -c "! grep -q LICENSE_PUBLIC_KEY= '$WORK/.env'"
 
+printf 'DEPLOYMENT_TYPE=SaaS\n' > "$WORK/.env"
+OL_LICENSE_PUBLIC_KEY=$'-----BEGIN PUBLIC KEY-----\nabc' olgene_package_set_license_key "$WORK/.env" >/dev/null 2>&1
+check "rejects a multi-line key" test "$?" != 0
+
 echo "Passed: ${PASS}, Failed: ${FAIL}"
 [[ "$FAIL" -eq 0 ]]
